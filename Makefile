@@ -8,6 +8,6 @@ bin/hs main.cpp:
 	c++ main.cpp -o bin/main \
 		-DOS_INFO="$(OS_INFO)" \
 		-DREP_VERSION="$(VERSION_TAG)" \
-		-DREP_COMMIT_HASH="$(COMMIT_HASH)"
+		-DREP_COMMIT_HASH="$(COMMIT_HASH)" -g
 clean:
 	rm -rf "bin/main"
