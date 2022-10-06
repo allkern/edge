@@ -1,0 +1,8 @@
+.vscode/
+bin/
+build-win-debug.ps1
+signal_debug.cpp
+test.cpp
+*.exe
+*.bin
+*.gb
