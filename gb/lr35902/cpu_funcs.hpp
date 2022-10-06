@@ -18,6 +18,8 @@ namespace gb {
         cpu->pins = &lr35902->pins;
 
         // Initialize bus to idle state
+        cpu->pins->rd = true;
+        cpu->pins->wr = true;
         cpu->pins->a = 0x8000;
         cpu->pins->cs = true;
 
@@ -48,11 +50,82 @@ namespace gb {
         cpu->a_latch = addr;
     }
 
+    void cpu_init_write(cpu_t* cpu, uint16_t addr, uint8_t data) {
+        cpu->write_ongoing = true;
+        cpu->a_latch = addr;
+        cpu->d_latch = data;
+    }
+
     void cpu_update_clocks(cpu_t* cpu) {
         cpu->ck_half_cycle++;
         cpu->ck_half_cycle %= 8;
 
         cpu->pins->phi = !((cpu->ck_half_cycle >> 2) & 1);
+    }
+
+    bool cpu_handle_write(cpu_t* cpu) {
+        bool rom = RANGE(cpu->a_latch, 0x0000, 0x7fff);
+        bool ram = RANGE(cpu->a_latch, 0xa000, 0xfdff);
+
+        switch (cpu->ck_half_cycle) {
+            case 0: {
+                cpu->pins->wr = true;
+                cpu->pins->rd = false;
+
+                // Pull A15 and CS high
+                cpu->pins->a |= 0x8000;
+                cpu->pins->cs = true;
+
+            } break;
+
+            case 1: {
+                if (RANGE(cpu->a_latch, 0x0000, 0x7fff) || RANGE(cpu->a_latch, 0xa000, 0xfdff)) {
+                    cpu->pins->rd = true;
+                }
+
+                // Keep A15
+                cpu->pins->a &= 0x8000;
+
+                // Latch address into A lines
+                cpu->pins->a |= cpu->a_latch & 0x7fff;
+            } break;
+
+            case 2: {
+                if (RANGE(cpu->a_latch, 0x0000, 0x7fff)) {
+                    // A15 pulled low
+                    cpu->pins->a &= 0x7fff;
+                } else if (RANGE(cpu->a_latch, 0xa000, 0xfdff)) {
+                    cpu->pins->cs = false;
+                }
+            } break;
+
+            case 3: {
+                if (RANGE(cpu->a_latch, 0x0000, 0x7fff) || RANGE(cpu->a_latch, 0xa000, 0xfdff)) {
+                    // WR goes low
+                    cpu->pins->wr = false;
+
+                    // and data is latched into D lines
+                    cpu->pins->d = cpu->d_latch;
+                }
+            } break;
+
+            case 6: {
+                // WR is pulled high
+                cpu->pins->wr = true;
+            } break;
+
+            case 7: {
+                cpu->write_ongoing = false;
+
+                return false;
+            }
+
+            default: {
+                // CPU doesn't change signals
+            } break;
+        }
+
+        return true;
     }
 
     bool cpu_handle_read(cpu_t* cpu, uint8_t* dest) {
@@ -127,6 +200,8 @@ namespace gb {
                     }
                 }
             } break;
+
+            case ST_TEST: { /* CPU is externally controlled */ } break;
         }
 
         cpu_update_clocks(cpu);

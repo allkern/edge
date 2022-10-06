@@ -19,6 +19,7 @@ namespace gb {
         bool exec_ongoing;
         
         uint16_t a_latch;
+        uint8_t d_latch;
 
         // Main registers
         uint8_t r[8];

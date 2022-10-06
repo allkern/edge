@@ -12,37 +12,36 @@
 // Hardware outside LR35902 SoC
 #include "cartridge_slot/slot_struct.hpp"
 #include "cartridge_slot/slot_funcs.hpp"
-#include "lh5264an/lh5264an_struct.hpp"
-#include "lh5264an/lh5264an_funcs.hpp"
+#include "lh52a64n/lh52a64n_struct.hpp"
+#include "lh52a64n/lh52a64n_funcs.hpp"
 
 namespace gb {
     struct gameboy_t {
-        lr35902_t        lr35902;
-        lh5264an_t       wram;
+        lr35902_t        soc;
+        lh52a64n_t       wram;
         cpu_t            cpu;
         cartridge_slot_t slot;
     };
 
     void init(gameboy_t* gb) {
         // Init hardware
-        lr35902_init(&gb->lr35902);
-        lh5264an_init(&gb->wram, &gb->lr35902);
-        cpu_init(&gb->cpu, &gb->lr35902);
-        slot_init(&gb->slot, &gb->lr35902);
+        lr35902_init(&gb->soc);
+        lh52a64n_init(&gb->wram, &gb->soc);
+        cpu_init(&gb->cpu, &gb->soc);
+        slot_init(&gb->slot, &gb->soc);
 
         // Assign CPU to LR35902
-        gb->lr35902.cpu = &gb->cpu;
+        gb->soc.cpu = &gb->cpu;
     }
 
     void clock(gameboy_t* gb, int cycles = 1) {
         while (cycles--) {
             // This clocks all hardware inside LR35902 SoC
-            lr35902_clock(&gb->lr35902);
+            lr35902_clock(&gb->soc);
 
-            // We also have to clock hardware outside the SoC
+            // We also have to clock/update hardware outside the SoC
             slot_clock(&gb->slot);
-
-            lh5264an_update(&gb->wram);
+            lh52a64n_update(&gb->wram);
         }
     }
 }

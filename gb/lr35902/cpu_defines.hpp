@@ -9,6 +9,7 @@ namespace gb {
         ST_EXECUTE,
         ST_EXECUTE_FETCH,
         ST_HALT,
+        ST_TEST,
         ST_STOP
     };
 

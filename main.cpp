@@ -6,14 +6,16 @@ void log_cpu_state(gb::gameboy_t* gb) {
         _log(debug, "M cycle start");
     }
 
-    _log(debug, "CKH=%u, CLK=%u, PHI=%u, A0-A14=%04x, A15=%u, CS=%u, D0-D7=%02x, A=%02x, B=%02x, C=%02x, D=%02x, E=%02x, F=%02x, H=%02x, L=%02x",
+    _log(debug, "CKH=%u, CLK=%u, PHI=%u, A0-A14=%04x, RD=%u, WR=%u, A15=%u, CS=%u, D0-D7=%02x, A=%02x, B=%02x, C=%02x, D=%02x, E=%02x, F=%02x, H=%02x, L=%02x",
         gb->cpu.ck_half_cycle,
         !(gb->cpu.ck_half_cycle & 1),
         !((gb->cpu.ck_half_cycle >> 2) & 1),
-        gb->lr35902.pins.a & 0x7fff,
-        (gb->lr35902.pins.a >> 15) & 0x1,
-        gb->lr35902.pins.cs,
-        gb->lr35902.pins.d,
+        gb->soc.pins.a & 0x7fff,
+        gb->soc.pins.rd,
+        gb->soc.pins.wr,
+        gb->soc.pins.cs,
+        (gb->soc.pins.a >> 15) & 0x1,
+        gb->soc.pins.d,
         gb->cpu.r[7],
         gb->cpu.r[0],
         gb->cpu.r[1],
