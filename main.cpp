@@ -6,7 +6,7 @@ void log_cpu_state(gb::gameboy_t* gb) {
         _log(debug, "M cycle start");
     }
 
-    _log(debug, "CKH=%u, CLK=%u, PHI=%u, A0-A14=%04x, RD=%u, WR=%u, A15=%u, CS=%u, D0-D7=%02x, A=%02x, B=%02x, C=%02x, D=%02x, E=%02x, F=%02x, H=%02x, L=%02x",
+    _log(debug, "CKH=%u, CLK=%u, PHI=%u, A0-A14=%04x, RD=%u, WR=%u, A15=%u, CS=%u, D0-D7=%02x, A=%02x, B=%02x, C=%02x, D=%02x, E=%02x, F=%02x, H=%02x, L=%02x, CYC=%u",
         gb->cpu.ck_half_cycle,
         !(gb->cpu.ck_half_cycle & 1),
         !((gb->cpu.ck_half_cycle >> 2) & 1),
@@ -23,7 +23,8 @@ void log_cpu_state(gb::gameboy_t* gb) {
         gb->cpu.r[3],
         gb->cpu.r[6],
         gb->cpu.r[4],
-        gb->cpu.r[5]
+        gb->cpu.r[5],
+        gb->cpu.total_t_cycles
     );
 }
 
@@ -33,12 +34,9 @@ int main() {
     gb::gameboy_t gb;
     gb::init(&gb);
 
-    // Test
-    gb.cpu.r[0] = 0xaa;
-
     log_cpu_state(&gb);
 
-    for (int i = 0; i < 32; i++) {
+    for (int i = 0; i < 63; i++) {
         gb::clock(&gb);
 
         log_cpu_state(&gb);

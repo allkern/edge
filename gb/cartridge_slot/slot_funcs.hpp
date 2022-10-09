@@ -13,12 +13,10 @@ namespace gb {
     }
 
     uint8_t rom[0xff] = {
-        0x78, 0x48
+        0x26, 0xca, 0x2e, 0xf1, 0x46
     };
 
     void slot_clock(cartridge_slot_t* slot) {
-        // To-do
-
         // Simulate ROM
         bool access = slot->pins->cs && !(slot->pins->a & 0x8000);
 

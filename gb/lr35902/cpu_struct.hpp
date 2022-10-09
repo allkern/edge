@@ -17,7 +17,8 @@ namespace gb {
         bool read_ongoing;
         bool write_ongoing;
         bool exec_ongoing;
-        
+
+        // Address and data bus latches
         uint16_t a_latch;
         uint8_t d_latch;
 
@@ -30,7 +31,7 @@ namespace gb {
         uint8_t x_latch, y_latch;
 
         // Which execute stage cycle are we on
-        uint8_t ex_cycle;
+        uint8_t ex_m_cycle;
 
         // Total instruction execute cycles
         uint8_t ex_cycles_cnt;
@@ -39,8 +40,14 @@ namespace gb {
         uint8_t ck_half_cycle;
 
         // Current opcode being executed
-        uint8_t instruction_latch;
+        uint8_t temp_i_latch;
+        uint8_t i_latch;
+
+        // Data fetch latches
+        uint8_t l_latch, h_latch;
 
         uint8_t state = ST_FETCH;
+
+        uint64_t total_t_cycles;
     };
 }

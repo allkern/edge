@@ -6,22 +6,40 @@
 #include "cpu_instructions.hpp"
 
 namespace gb {
-    cpu_instruction_t instruction_table[] = {
-        ld_r_r, ld_r_r, ld_r_r, ld_r_r, ld_r_r, ld_r_r, ld_r_r, ld_r_r, ld_r_r, ld_r_r, ld_r_r, ld_r_r, ld_r_r, ld_r_r, ld_r_r, ld_r_r,
-        ld_r_r, ld_r_r, ld_r_r, ld_r_r, ld_r_r, ld_r_r, ld_r_r, ld_r_r, ld_r_r, ld_r_r, ld_r_r, ld_r_r, ld_r_r, ld_r_r, ld_r_r, ld_r_r,
-        ld_r_r, ld_r_r, ld_r_r, ld_r_r, ld_r_r, ld_r_r, ld_r_r, ld_r_r, ld_r_r, ld_r_r, ld_r_r, ld_r_r, ld_r_r, ld_r_r, ld_r_r, ld_r_r,
-        ld_r_r, ld_r_r, ld_r_r, ld_r_r, ld_r_r, ld_r_r, ld_r_r, ld_r_r, ld_r_r, ld_r_r, ld_r_r, ld_r_r, ld_r_r, ld_r_r, ld_r_r, ld_r_r,
-        ld_r_r, ld_r_r, ld_r_r, ld_r_r, ld_r_r, ld_r_r, ld_r_r, ld_r_r, ld_r_r, ld_r_r, ld_r_r, ld_r_r, ld_r_r, ld_r_r, ld_r_r, ld_r_r,
-        ld_r_r, ld_r_r, ld_r_r, ld_r_r, ld_r_r, ld_r_r, ld_r_r, ld_r_r, ld_r_r, ld_r_r, ld_r_r, ld_r_r, ld_r_r, ld_r_r, ld_r_r, ld_r_r,
-        ld_r_r, ld_r_r, ld_r_r, ld_r_r, ld_r_r, ld_r_r, ld_r_r, ld_r_r, ld_r_r, ld_r_r, ld_r_r, ld_r_r, ld_r_r, ld_r_r, ld_r_r, ld_r_r,
-        ld_r_r, ld_r_r, ld_r_r, ld_r_r, ld_r_r, ld_r_r, ld_r_r, ld_r_r, ld_r_r, ld_r_r, ld_r_r, ld_r_r, ld_r_r, ld_r_r, ld_r_r, ld_r_r,
-        ld_r_r, ld_r_r, ld_r_r, ld_r_r, ld_r_r, ld_r_r, ld_r_r, ld_r_r, ld_r_r, ld_r_r, ld_r_r, ld_r_r, ld_r_r, ld_r_r, ld_r_r, ld_r_r,
-        ld_r_r, ld_r_r, ld_r_r, ld_r_r, ld_r_r, ld_r_r, ld_r_r, ld_r_r, ld_r_r, ld_r_r, ld_r_r, ld_r_r, ld_r_r, ld_r_r, ld_r_r, ld_r_r,
-        ld_r_r, ld_r_r, ld_r_r, ld_r_r, ld_r_r, ld_r_r, ld_r_r, ld_r_r, ld_r_r, ld_r_r, ld_r_r, ld_r_r, ld_r_r, ld_r_r, ld_r_r, ld_r_r,
-        ld_r_r, ld_r_r, ld_r_r, ld_r_r, ld_r_r, ld_r_r, ld_r_r, ld_r_r, ld_r_r, ld_r_r, ld_r_r, ld_r_r, ld_r_r, ld_r_r, ld_r_r, ld_r_r,
-        ld_r_r, ld_r_r, ld_r_r, ld_r_r, ld_r_r, ld_r_r, ld_r_r, ld_r_r, ld_r_r, ld_r_r, ld_r_r, ld_r_r, ld_r_r, ld_r_r, ld_r_r, ld_r_r,
-        ld_r_r, ld_r_r, ld_r_r, ld_r_r, ld_r_r, ld_r_r, ld_r_r, ld_r_r, ld_r_r, ld_r_r, ld_r_r, ld_r_r, ld_r_r, ld_r_r, ld_r_r, ld_r_r,
-        ld_r_r, ld_r_r, ld_r_r, ld_r_r, ld_r_r, ld_r_r, ld_r_r, ld_r_r, ld_r_r, ld_r_r, ld_r_r, ld_r_r, ld_r_r, ld_r_r, ld_r_r, ld_r_r,
-        ld_r_r, ld_r_r, ld_r_r, ld_r_r, ld_r_r, ld_r_r, ld_r_r, ld_r_r, ld_r_r, ld_r_r, ld_r_r, ld_r_r, ld_r_r, ld_r_r, ld_r_r, ld_r_r
+    static cpu_instruction_t instruction_table[] = {
+    /*  X0          X1          X2          X3          X4          X5          X6          X7                */
+    /*  X8          X9          Xa          Xb          Xc          Xd          Xe          Xf                */
+        nop,        nop,        nop,        nop,        nop,        nop,        ld_r_n,        nop,     /* 0X */
+        nop,        nop,        nop,        nop,        nop,        nop,        ld_r_n,        nop,     
+        nop,        nop,        nop,        nop,        nop,        nop,        ld_r_n,        nop,     /* 1X */
+        nop,        nop,        nop,        nop,        nop,        nop,        ld_r_n,        nop,     
+        nop,        nop,        nop,        nop,        nop,        nop,        ld_r_n,        nop,     /* 2X */
+        nop,        nop,        nop,        nop,        nop,        nop,        ld_r_n,        nop,     
+        nop,        nop,        nop,        nop,        nop,        nop,        nop,           nop,     /* 3X */
+        nop,        nop,        nop,        nop,        nop,        nop,        ld_r_n,        nop,     
+        ld_r_r,     ld_r_r,     ld_r_r,     ld_r_r,     ld_r_r,     ld_r_r,     ld_r_hl,    ld_r_r,     /* 4X */
+        ld_r_r,     ld_r_r,     ld_r_r,     ld_r_r,     ld_r_r,     ld_r_r,     ld_r_hl,    ld_r_r,     
+        ld_r_r,     ld_r_r,     ld_r_r,     ld_r_r,     ld_r_r,     ld_r_r,     ld_r_hl,    ld_r_r,     /* 5X */
+        ld_r_r,     ld_r_r,     ld_r_r,     ld_r_r,     ld_r_r,     ld_r_r,     ld_r_hl,    ld_r_r,     
+        ld_r_r,     ld_r_r,     ld_r_r,     ld_r_r,     ld_r_r,     ld_r_r,     ld_r_hl,    ld_r_r,     /* 6X */
+        ld_r_r,     ld_r_r,     ld_r_r,     ld_r_r,     ld_r_r,     ld_r_r,     ld_r_hl,    ld_r_r,     
+        ld_hl_r,    ld_hl_r,    ld_hl_r,    ld_hl_r,    ld_hl_r,    ld_hl_r,    nop,        ld_hl_r,    /* 7X */
+        ld_r_r,     ld_r_r,     ld_r_r,     ld_r_r,     ld_r_r,     ld_r_r,     ld_r_hl,    ld_r_r,     
+        nop,        nop,        nop,        nop,        nop,        nop,        nop,        nop,        /* 8X */
+        nop,        nop,        nop,        nop,        nop,        nop,        nop,        nop,        
+        nop,        nop,        nop,        nop,        nop,        nop,        nop,        nop,        /* 9X */
+        nop,        nop,        nop,        nop,        nop,        nop,        nop,        nop,        
+        nop,        nop,        nop,        nop,        nop,        nop,        nop,        nop,        /* aX */
+        nop,        nop,        nop,        nop,        nop,        nop,        nop,        nop,        
+        nop,        nop,        nop,        nop,        nop,        nop,        nop,        nop,        /* bX */
+        nop,        nop,        nop,        nop,        nop,        nop,        nop,        nop,        
+        nop,        nop,        nop,        nop,        nop,        nop,        nop,        nop,        /* cX */
+        nop,        nop,        nop,        nop,        nop,        nop,        nop,        nop,        
+        nop,        nop,        nop,        nop,        nop,        nop,        nop,        nop,        /* dX */
+        nop,        nop,        nop,        nop,        nop,        nop,        nop,        nop,        
+        nop,        nop,        nop,        nop,        nop,        nop,        nop,        nop,        /* eX */
+        nop,        nop,        nop,        nop,        nop,        nop,        nop,        nop,        
+        nop,        nop,        nop,        nop,        nop,        nop,        nop,        nop,        /* fX */
+        nop,        nop,        nop,        nop,        nop,        nop,        nop,        nop,        
     };
 }

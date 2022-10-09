@@ -21,7 +21,7 @@ namespace gb {
     }
 
     // Scheme breaking name:
-    // This is called lh52a64n_update because the lh52a64n
+    // This is called lh52a64n_update because the LH52A64N
     // chip doesn't require an input clock signal.
     // Data is served on-demand
 
