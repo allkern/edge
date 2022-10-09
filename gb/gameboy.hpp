@@ -12,13 +12,13 @@
 // Hardware outside LR35902 SoC
 #include "cartridge_slot/slot_struct.hpp"
 #include "cartridge_slot/slot_funcs.hpp"
-#include "lh52a64n/lh52a64n_struct.hpp"
-#include "lh52a64n/lh52a64n_funcs.hpp"
+#include "lh5264/lh5264_struct.hpp"
+#include "lh5264/lh5264_funcs.hpp"
 
 namespace gb {
     struct gameboy_t {
         lr35902_t        soc;
-        lh52a64n_t       wram;
+        lh5264_t       wram;
         cpu_t            cpu;
         cartridge_slot_t slot;
     };
@@ -26,7 +26,7 @@ namespace gb {
     void init(gameboy_t* gb) {
         // Init hardware
         lr35902_init(&gb->soc);
-        lh52a64n_init(&gb->wram, &gb->soc);
+        lh5264_init(&gb->wram, &gb->soc);
         cpu_init(&gb->cpu, &gb->soc);
         slot_init(&gb->slot, &gb->soc);
 
@@ -41,7 +41,7 @@ namespace gb {
 
             // We also have to clock/update hardware outside the SoC
             slot_clock(&gb->slot);
-            lh52a64n_update(&gb->wram);
+            lh5264_update(&gb->wram);
         }
     }
 }

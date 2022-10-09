@@ -3,29 +3,29 @@
 #include "../macros.hpp"
 #include "../structs.hpp"
 
-#include "lh52a64n_struct.hpp"
+#include "lh5264_struct.hpp"
 
 #include "../lr35902/lr35902_struct.hpp"
 
 namespace gb {
-    void lh52a64n_init(lh52a64n_t* lh52a64n, lr35902_t* lr35902) {
-        lh52a64n->pins = &lr35902->pins;
+    void lh5264_init(lh5264_t* lh5264, lr35902_t* lr35902) {
+        lh5264->pins = &lr35902->pins;
 
         // Allocate 8KB
-        lh52a64n->memory = new uint8_t[0x2000];
+        lh5264->memory = new uint8_t[0x2000];
 
         // Fill with test pattern (55 aa)
         for (int i = 0; i < 0x2000; i++) {
-            lh52a64n->memory[i] = 0x55 << (i & 0x1);
+            lh5264->memory[i] = 0x55 << (i & 0x1);
         }
     }
 
     // Scheme breaking name:
-    // This is called lh52a64n_update because the LH52A64N
+    // This is called lh5264_update because the LH5264
     // chip doesn't require an input clock signal.
     // Data is served on-demand
 
-    void lh52a64n_update(lh52a64n_t* lh52a64n) {
+    void lh5264_update(lh5264_t* lh5264) {
         // Table derived straight from Sharp's datasheet:
         // ___           __    __
         // CE1    CE2    WE    OE    Mode      D0-D7
@@ -35,25 +35,25 @@ namespace gb {
         //  L      H     H     L     Read      Output
         //  L      H     H     H     No Output High-Z
         
-        bool we = lh52a64n->pins->wr;
-        bool oe = lh52a64n->pins->rd;
-        bool ce1 = lh52a64n->pins->cs;
+        bool we = lh5264->pins->wr;
+        bool oe = lh5264->pins->rd;
+        bool ce1 = lh5264->pins->cs;
 
         // Connected to A14
-        bool ce2 = lh52a64n->pins->a & 0x4000;
+        bool ce2 = lh5264->pins->a & 0x4000;
 
         // A0-A12
-        uint16_t addr = lh52a64n->pins->a & 0x1fff;
+        uint16_t addr = lh5264->pins->a & 0x1fff;
 
         // Non-standby mode
         if (ce2 && !ce1) {
             // Write mode
             if (!we) {
-                lh52a64n->memory[addr] = lh52a64n->pins->d;
+                lh5264->memory[addr] = lh5264->pins->d;
             } else {
                 // Read mode
                 if (!oe) {
-                    lh52a64n->pins->d = lh52a64n->memory[addr];
+                    lh5264->pins->d = lh5264->memory[addr];
                 } // Else no output
             }
         } // Else standby
