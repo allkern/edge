@@ -36,7 +36,7 @@ int main() {
 
     log_cpu_state(&gb);
 
-    for (int i = 0; i < 63; i++) {
+    for (int i = 0; i < 95; i++) {
         gb::clock(&gb);
 
         log_cpu_state(&gb);

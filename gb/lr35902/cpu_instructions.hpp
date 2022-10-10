@@ -314,6 +314,54 @@ namespace gb {
 
         return IS_DONE;
     }
+
+    instruction_state_t ld_nn_a(cpu_t* cpu) {
+        switch (cpu->ex_m_cycle) {
+            case 0: {
+                if (!cpu->read_ongoing) {
+                    cpu_init_read(cpu, cpu->pc++);
+                }
+
+                if (!cpu_handle_read(cpu, &cpu->l_latch)) {
+                    cpu->ex_m_cycle++;
+                }
+
+                return IS_EXECUTING;
+            } break;
+
+            case 1: {
+                if (!cpu->read_ongoing) {
+                    cpu_init_read(cpu, cpu->pc++);
+                }
+
+                if (!cpu_handle_read(cpu, &cpu->h_latch)) {
+                    cpu->ex_m_cycle++;
+                }
+
+                return IS_EXECUTING;
+            } break;
+
+            case 2: {
+                if (!cpu->write_ongoing) {
+                    cpu_init_write(cpu, NN, A);
+                }
+
+                if (!cpu_handle_write(cpu)) {
+                    cpu->ex_m_cycle++;
+                }
+
+                return IS_EXECUTING;
+            } break;
+
+            case 3: {
+                return IS_LAST_CYCLE;
+            } break;
+
+            INVALID_M;
+        }
+
+        return IS_DONE;
+    }
 }
 
 #undef A

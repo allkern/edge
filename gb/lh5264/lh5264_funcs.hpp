@@ -48,12 +48,13 @@ namespace gb {
         // Non-standby mode
         if (ce2 && !ce1) {
             // Write mode
+            // Trigger write on WR falling edge
             if ((!we) && lh5264->prev_we) {
                 _log(debug, "WRAM write %04x -> %02x", lh5264->pins->a, lh5264->pins->d);
                 lh5264->memory[addr] = lh5264->pins->d;
             } else {
                 // Read mode
-                if ((!oe) && lh5264->prev_oe) {
+                if (!oe) {
                     lh5264->pins->d = lh5264->memory[addr];
                 } // Else no output
             }
