@@ -189,6 +189,32 @@ namespace gb {
 
         return IS_DONE;
     }
+
+    instruction_state_t ld_a_de(cpu_t* cpu) {
+        switch (cpu->ex_m_cycle) {
+            case 0: {
+                if (!cpu->read_ongoing) {
+                    cpu_init_read(cpu, DE);
+                }
+
+                if (!cpu_handle_read(cpu, &cpu->l_latch)) {
+                    cpu->ex_m_cycle++;
+                }
+
+                return IS_EXECUTING;
+            } break;
+
+            case 1: {
+                A = cpu->l_latch;
+
+                return IS_LAST_CYCLE;
+            } break;
+
+            INVALID_M;
+        }
+
+        return IS_DONE;
+    }
 }
 
 #undef A

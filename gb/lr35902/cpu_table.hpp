@@ -10,9 +10,9 @@ namespace gb {
     /*  X0          X1          X2          X3          X4          X5          X6          X7                */
     /*  X8          X9          Xa          Xb          Xc          Xd          Xe          Xf                */
         nop,        nop,        nop,        nop,        nop,        nop,        ld_r_n,        nop,     /* 0X */
-        nop,        nop,        nop,        nop,        nop,        nop,        ld_r_n,        nop,     
+        nop,        nop,        ld_a_bc,    nop,        nop,        nop,        ld_r_n,        nop,     
         nop,        nop,        nop,        nop,        nop,        nop,        ld_r_n,        nop,     /* 1X */
-        nop,        nop,        nop,        nop,        nop,        nop,        ld_r_n,        nop,     
+        nop,        nop,        ld_a_de,    nop,        nop,        nop,        ld_r_n,        nop,     
         nop,        nop,        nop,        nop,        nop,        nop,        ld_r_n,        nop,     /* 2X */
         nop,        nop,        nop,        nop,        nop,        nop,        ld_r_n,        nop,     
         nop,        nop,        nop,        nop,        nop,        nop,        ld_hl_n,       nop,     /* 3X */
