@@ -13,10 +13,10 @@ namespace gb {
         nop,        nop,        ld_a_bc,    nop,        nop,        nop,        ld_r_n,        nop,     
         nop,        nop,        nop,        nop,        nop,        nop,        ld_r_n,        nop,     /* 1X */
         nop,        nop,        ld_a_de,    nop,        nop,        nop,        ld_r_n,        nop,     
-        nop,        nop,        nop,        nop,        nop,        nop,        ld_r_n,        nop,     /* 2X */
-        nop,        nop,        nop,        nop,        nop,        nop,        ld_r_n,        nop,     
-        nop,        nop,        nop,        nop,        nop,        nop,        ld_hl_n,       nop,     /* 3X */
-        nop,        nop,        nop,        nop,        nop,        nop,        ld_r_n,        nop,     
+        nop,        nop,        ld_hli_a,   nop,        nop,        nop,        ld_r_n,        nop,     /* 2X */
+        nop,        nop,        ld_a_hli,   nop,        nop,        nop,        ld_r_n,        nop,     
+        nop,        nop,        ld_hld_a,   nop,        nop,        nop,        ld_hl_n,       nop,     /* 3X */
+        nop,        nop,        ld_a_hld,   nop,        nop,        nop,        ld_r_n,        nop,     
         ld_r_r,     ld_r_r,     ld_r_r,     ld_r_r,     ld_r_r,     ld_r_r,     ld_r_hl,    ld_r_r,     /* 4X */
         ld_r_r,     ld_r_r,     ld_r_r,     ld_r_r,     ld_r_r,     ld_r_r,     ld_r_hl,    ld_r_r,     
         ld_r_r,     ld_r_r,     ld_r_r,     ld_r_r,     ld_r_r,     ld_r_r,     ld_r_hl,    ld_r_r,     /* 5X */
