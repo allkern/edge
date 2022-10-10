@@ -24,6 +24,7 @@
 #define BC (((uint16_t)B << 8) | C)
 #define DE (((uint16_t)D << 8) | E)
 #define HL (((uint16_t)H << 8) | L)
+#define NN (((uint16_t)cpu->h_latch << 8) | cpu->l_latch)
 
 #define INVALID_M \
     default: { \
@@ -215,6 +216,104 @@ namespace gb {
 
         return IS_DONE;
     }
+
+    instruction_state_t ld_bc_a(cpu_t* cpu) {
+        switch (cpu->ex_m_cycle) {
+            case 0: {
+                if (!cpu->write_ongoing) {
+                    cpu_init_write(cpu, BC, A);
+                }
+
+                if (!cpu_handle_write(cpu)) {
+                    cpu->ex_m_cycle++;
+                }
+
+                return IS_EXECUTING;
+            } break;
+
+            case 1: {
+                return IS_LAST_CYCLE;
+            } break;
+
+            INVALID_M;
+        }
+
+        return IS_DONE;
+    }
+
+    instruction_state_t ld_de_a(cpu_t* cpu) {
+        switch (cpu->ex_m_cycle) {
+            case 0: {
+                if (!cpu->write_ongoing) {
+                    cpu_init_write(cpu, DE, A);
+                }
+
+                if (!cpu_handle_write(cpu)) {
+                    cpu->ex_m_cycle++;
+                }
+
+                return IS_EXECUTING;
+            } break;
+
+            case 1: {
+                return IS_LAST_CYCLE;
+            } break;
+
+            INVALID_M;
+        }
+
+        return IS_DONE;
+    }
+
+    instruction_state_t ld_a_nn(cpu_t* cpu) {
+        switch (cpu->ex_m_cycle) {
+            case 0: {
+                if (!cpu->read_ongoing) {
+                    cpu_init_read(cpu, cpu->pc++);
+                }
+
+                if (!cpu_handle_read(cpu, &cpu->l_latch)) {
+                    cpu->ex_m_cycle++;
+                }
+
+                return IS_EXECUTING;
+            } break;
+
+            case 1: {
+                if (!cpu->read_ongoing) {
+                    cpu_init_read(cpu, cpu->pc++);
+                }
+
+                if (!cpu_handle_read(cpu, &cpu->h_latch)) {
+                    cpu->ex_m_cycle++;
+                }
+
+                return IS_EXECUTING;
+            } break;
+
+            case 2: {
+                if (!cpu->read_ongoing) {
+                    cpu_init_read(cpu, NN);
+                }
+
+                if (!cpu_handle_read(cpu, &cpu->l_latch)) {
+                    cpu->ex_m_cycle++;
+                }
+
+                return IS_EXECUTING;
+            } break;
+
+            case 3: {
+                A = cpu->l_latch;
+
+                return IS_LAST_CYCLE;
+            } break;
+
+            INVALID_M;
+        }
+
+        return IS_DONE;
+    }
 }
 
 #undef A
@@ -229,5 +328,6 @@ namespace gb {
 #undef BC
 #undef DE
 #undef HL
+#undef NN
 
 #undef INVALID_M
