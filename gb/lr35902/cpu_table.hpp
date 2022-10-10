@@ -15,7 +15,7 @@ namespace gb {
         nop,        nop,        nop,        nop,        nop,        nop,        ld_r_n,        nop,     
         nop,        nop,        nop,        nop,        nop,        nop,        ld_r_n,        nop,     /* 2X */
         nop,        nop,        nop,        nop,        nop,        nop,        ld_r_n,        nop,     
-        nop,        nop,        nop,        nop,        nop,        nop,        nop,           nop,     /* 3X */
+        nop,        nop,        nop,        nop,        nop,        nop,        ld_hl_n,       nop,     /* 3X */
         nop,        nop,        nop,        nop,        nop,        nop,        ld_r_n,        nop,     
         ld_r_r,     ld_r_r,     ld_r_r,     ld_r_r,     ld_r_r,     ld_r_r,     ld_r_hl,    ld_r_r,     /* 4X */
         ld_r_r,     ld_r_r,     ld_r_r,     ld_r_r,     ld_r_r,     ld_r_r,     ld_r_hl,    ld_r_r,     

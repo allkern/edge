@@ -15,6 +15,9 @@ namespace gb {
     struct lh5264_t {
         lr35902_t::pins_t* pins;
 
+        bool prev_we;
+        bool prev_oe;
+
         uint8_t* memory;
     };
 }

@@ -120,4 +120,44 @@ namespace gb {
 
         return IS_DONE;
     }
+
+    instruction_state_t ld_hl_n(cpu_t* cpu) {
+        switch (cpu->ex_m_cycle) {
+            case 0: {
+                if (!cpu->read_ongoing) {
+                    cpu_init_read(cpu, cpu->pc++);
+                }
+
+                if (!cpu_handle_read(cpu, &cpu->l_latch)) {
+                    cpu->ex_m_cycle++;
+                }
+
+                return IS_EXECUTING;
+            } break;
+
+            case 1: {
+                if (!cpu->write_ongoing) {
+                    cpu_init_write(cpu, ((uint16_t)cpu->r[4] << 8) | cpu->r[5], cpu->l_latch);
+                }
+
+                if (!cpu_handle_write(cpu)) {
+                    cpu->ex_m_cycle++;
+                }
+
+                return IS_EXECUTING;
+            } break;
+
+            case 2: {
+                return IS_LAST_CYCLE;
+            } break;
+
+            default: {
+                _log(error, "Invalid M cycle %u while executing %s", cpu->ex_m_cycle, __FUNCTION__);
+
+                std::exit(1);
+            } break;
+        }
+
+        return IS_DONE;
+    }
 }
