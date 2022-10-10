@@ -37,9 +37,9 @@ namespace gb {
         nop,        nop,        nop,        nop,        nop,        nop,        nop,        nop,        
         nop,        nop,        nop,        nop,        nop,        nop,        nop,        nop,        /* dX */
         nop,        nop,        nop,        nop,        nop,        nop,        nop,        nop,        
-        nop,        nop,        nop,        nop,        nop,        nop,        nop,        nop,        /* eX */
+        ldh_n_a,    nop,        ldh_c_a,    nop,        nop,        nop,        nop,        nop,        /* eX */
         nop,        nop,        ld_nn_a,    nop,        nop,        nop,        nop,        nop,        
-        nop,        nop,        nop,        nop,        nop,        nop,        nop,        nop,        /* fX */
+        ldh_a_n,    nop,        ldh_a_c,    nop,        nop,        nop,        nop,        nop,        /* fX */
         nop,        nop,        ld_a_nn,    nop,        nop,        nop,        nop,        nop,        
     };
 }

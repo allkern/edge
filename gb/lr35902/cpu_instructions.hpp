@@ -362,6 +362,132 @@ namespace gb {
 
         return IS_DONE;
     }
+
+    instruction_state_t ldh_a_c(cpu_t* cpu) {
+        switch (cpu->ex_m_cycle) {
+            case 0: {
+                if (!cpu->read_ongoing) {
+                    cpu_init_read(cpu, 0xff00 | C);
+                }
+
+                if (!cpu_handle_read(cpu, &cpu->l_latch)) {
+                    cpu->ex_m_cycle++;
+                }
+
+                return IS_EXECUTING;
+            } break;
+
+            case 1: {
+                A = cpu->l_latch;
+
+                return IS_LAST_CYCLE;
+            } break;
+
+            INVALID_M;
+        }
+
+        return IS_DONE;
+    }
+
+    instruction_state_t ldh_c_a(cpu_t* cpu) {
+        switch (cpu->ex_m_cycle) {
+            case 0: {
+                if (!cpu->write_ongoing) {
+                    cpu_init_write(cpu, 0xff00 | C, A);
+                }
+
+                if (!cpu_handle_write(cpu)) {
+                    cpu->ex_m_cycle++;
+                }
+
+                return IS_EXECUTING;
+            } break;
+
+            case 1: {
+                return IS_LAST_CYCLE;
+            } break;
+
+            INVALID_M;
+        }
+
+        return IS_DONE;
+    }
+
+    instruction_state_t ldh_a_n(cpu_t* cpu) {
+        switch (cpu->ex_m_cycle) {
+            case 0: {
+                if (!cpu->read_ongoing) {
+                    cpu_init_read(cpu, cpu->pc++);
+                }
+
+                if (!cpu_handle_read(cpu, &cpu->l_latch)) {
+                    cpu->ex_m_cycle++;
+                }
+
+                return IS_EXECUTING;
+            } break;
+
+            case 1: {
+                if (!cpu->read_ongoing) {
+                    cpu_init_read(cpu, 0xff00 | cpu->l_latch);
+                }
+
+                if (!cpu_handle_read(cpu, &cpu->l_latch)) {
+                    cpu->ex_m_cycle++;
+                }
+
+                return IS_EXECUTING;
+            } break;
+
+            case 2: {
+                A = cpu->l_latch;
+
+                return IS_LAST_CYCLE;
+            } break;
+
+            INVALID_M;
+        }
+
+        return IS_DONE;
+    }
+
+    instruction_state_t ldh_n_a(cpu_t* cpu) {
+        switch (cpu->ex_m_cycle) {
+            case 0: {
+                if (!cpu->read_ongoing) {
+                    cpu_init_read(cpu, cpu->pc++);
+                }
+
+                if (!cpu_handle_read(cpu, &cpu->l_latch)) {
+                    cpu->ex_m_cycle++;
+                }
+
+                return IS_EXECUTING;
+            } break;
+
+            case 1: {
+                if (!cpu->write_ongoing) {
+                    cpu_init_write(cpu, 0xff00 | cpu->l_latch, A);
+                }
+
+                if (!cpu_handle_write(cpu)) {
+                    cpu->ex_m_cycle++;
+                }
+
+                return IS_EXECUTING;
+            } break;
+
+            case 2: {
+                return IS_LAST_CYCLE;
+            } break;
+
+            INVALID_M;
+        }
+
+        return IS_DONE;
+    }
+
+    
 }
 
 #undef A
