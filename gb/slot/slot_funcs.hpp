@@ -13,7 +13,7 @@ namespace gb {
     }
 
     uint8_t rom[0xff] = {
-        0xc3, 0x00, 0xc0
+        0xc4, 0x04, 0x00, 0xaa, 0xc0
     };
 
     void slot_clock(cartridge_slot_t* slot) {

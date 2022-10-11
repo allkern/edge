@@ -18,6 +18,7 @@ namespace gb {
         bool write_ongoing;
         bool idle_cycle;
         bool exec_ongoing;
+        bool ime;
 
         // Address and data bus latches
         uint16_t a_latch;

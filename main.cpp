@@ -36,11 +36,11 @@ int main() {
 
     gb.cpu.r[0] = 0xde;
     gb.cpu.r[1] = 0xad;
-    gb.cpu.sp = 0xcfff;
+    gb.cpu.sp = 0xd000;
 
     log_cpu_state(&gb);
 
-    for (int i = 0; i < 63; i++) {
+    for (int i = 0; i < 32 * T; i++) {
         gb::clock(&gb);
 
         log_cpu_state(&gb);

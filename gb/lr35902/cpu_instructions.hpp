@@ -26,6 +26,11 @@
 #define HL (((uint16_t)H << 8) | L)
 #define NN (((uint16_t)cpu->h_latch << 8) | cpu->l_latch)
 
+#define ZF 0b10000000
+#define NF 0b01000000
+#define HF 0b00100000
+#define CF 0b00010000
+
 #define INVALID_M \
     default: { \
         _log(error, "Invalid M cycle %u while executing %s", cpu->ex_m_cycle, __FUNCTION__); \
@@ -105,6 +110,17 @@ namespace gb {
     get16_fn_t get16_push[] = {
         get_bc, get_de, get_hl, get_af
     };
+
+    inline bool check_condition(cpu_t* cpu, uint8_t cc) {
+        switch (cc) {
+            case 0: return !(cpu->r[6] & ZF);
+            case 1: return  (cpu->r[6] & ZF);
+            case 2: return !(cpu->r[6] & CF);
+            case 3: return  (cpu->r[6] & CF);
+        }
+
+        return false;
+    }
 
     instruction_state_t nop(cpu_t* cpu) {
         return IS_LAST_CYCLE;
@@ -875,6 +891,208 @@ namespace gb {
 
         return IS_DONE;
     }
+
+    instruction_state_t jp_hl(cpu_t* cpu) {
+        switch (cpu->ex_m_cycle) {
+            LAST(0, cpu->pc = HL);
+
+            INVALID_M;
+        }
+
+        return IS_DONE;
+    }
+
+    instruction_state_t jp_cc_nn(cpu_t* cpu) {
+        switch (cpu->ex_m_cycle) {
+            READ(0, cpu->pc++, &cpu->l_latch, , );
+            READ(1, cpu->pc++, &cpu->h_latch, , );
+            
+            case 2: {
+                if (check_condition(cpu, (cpu->i_latch >> 3) & 0x3)) {
+                    if (!cpu->idle_cycle) {
+                        cpu_init_idle(cpu);
+                    }
+
+                    if (!cpu_handle_idle(cpu)) {
+                        cpu->ex_m_cycle++;
+                    }
+
+                    return IS_EXECUTING;
+                } else {
+                    return IS_LAST_CYCLE;
+                }
+            } break;
+
+            LAST(3, cpu->pc = NN);
+
+            INVALID_M;
+        }
+
+        return IS_DONE;
+    }
+
+    instruction_state_t jr_n(cpu_t* cpu) {
+        switch (cpu->ex_m_cycle) {
+            READ(0, cpu->pc++, &cpu->l_latch, , );
+            IDLE(1, , );
+            LAST(2, cpu->pc += (int8_t)cpu->l_latch);
+
+            INVALID_M;
+        }
+
+        return IS_DONE;
+    }
+
+    instruction_state_t jr_cc_n(cpu_t* cpu) {
+        switch (cpu->ex_m_cycle) {
+            READ(0, cpu->pc++, &cpu->l_latch, , );
+            
+            case 1: {
+                if (check_condition(cpu, (cpu->i_latch >> 3) & 0x3)) {
+                    if (!cpu->idle_cycle) {
+                        cpu_init_idle(cpu);
+                    }
+
+                    if (!cpu_handle_idle(cpu)) {
+                        cpu->ex_m_cycle++;
+                    }
+
+                    return IS_EXECUTING;
+                } else {
+                    return IS_LAST_CYCLE;
+                }
+            } break;
+
+            LAST(2, cpu->pc += (int8_t)cpu->l_latch);
+
+            INVALID_M;
+        }
+
+        return IS_DONE;
+    }
+
+    instruction_state_t call_nn(cpu_t* cpu) {
+        switch (cpu->ex_m_cycle) {
+            READ(0, cpu->pc++, &cpu->l_latch, , );
+            READ(1, cpu->pc++, &cpu->h_latch, , );
+
+            // Basically the same as push rr, but with PC
+            IDLE(2, cpu->pins->a |= cpu->sp & 0x7fff, );
+            WRITE(3, --cpu->sp, (cpu->pc >> 8) & 0xff, , );
+            WRITE(4, --cpu->sp, (cpu->pc >> 0) & 0xff, , );
+            LAST(5, cpu->pc = NN);
+
+            INVALID_M;
+        }
+
+        return IS_DONE;
+    }
+
+    instruction_state_t call_cc_nn(cpu_t* cpu) {
+        switch (cpu->ex_m_cycle) {
+            READ(0, cpu->pc++, &cpu->l_latch, , );
+            READ(1, cpu->pc++, &cpu->h_latch, , );
+
+            case 2: {
+                if (check_condition(cpu, (cpu->i_latch >> 3) & 0x3)) {
+                    if (!cpu->idle_cycle) {
+                        cpu_init_idle(cpu);
+
+                        // Put SP on the bus while bus-idling
+                        cpu->pins->a |= cpu->sp & 0x7fff;
+                    }
+
+                    if (!cpu_handle_idle(cpu)) {
+                        cpu->ex_m_cycle++;
+                    }
+
+                    return IS_EXECUTING;
+                } else {
+                    return IS_LAST_CYCLE;
+                }
+            } break;
+
+            WRITE(3, --cpu->sp, (cpu->pc >> 8) & 0xff, , );
+            WRITE(4, --cpu->sp, (cpu->pc >> 0) & 0xff, , );
+            LAST(5, cpu->pc = NN);
+
+            INVALID_M;
+        }
+
+        return IS_DONE;
+    }
+
+    instruction_state_t ret(cpu_t* cpu) {
+        switch (cpu->ex_m_cycle) {
+            READ(0, cpu->sp++, &cpu->l_latch, , );
+            READ(1, cpu->sp++, &cpu->h_latch, , );
+            IDLE(2, , );
+            LAST(3, cpu->pc = NN);
+
+            INVALID_M;
+        }
+
+        return IS_DONE;
+    }
+
+    instruction_state_t ret_cc(cpu_t* cpu) {
+        switch (cpu->ex_m_cycle) {
+            IDLE(0, , );
+
+            case 1: {
+                if (check_condition(cpu, (cpu->i_latch >> 3) & 0x3)) {
+                    if (!cpu->read_ongoing) {
+                        cpu_init_read(cpu, cpu->sp++);
+                    }
+
+                    if (!cpu_handle_read(cpu, &cpu->l_latch)) {
+                        cpu->ex_m_cycle++; \
+                    }
+                    return IS_EXECUTING; \
+                } else {
+                    return IS_LAST_CYCLE;
+                }
+            } break;
+
+            READ(2, cpu->sp++, &cpu->h_latch, , );
+            IDLE(3, , );
+            LAST(4, cpu->pc = NN);
+
+            INVALID_M;
+        }
+
+        return IS_DONE;
+    }
+
+    instruction_state_t reti(cpu_t* cpu) {
+        switch (cpu->ex_m_cycle) {
+            READ(0, cpu->sp++, &cpu->l_latch, , );
+            READ(1, cpu->sp++, &cpu->h_latch, , );
+            IDLE(2, , cpu->ime = true);
+            LAST(3, cpu->pc = NN);
+
+            INVALID_M;
+        }
+
+        return IS_DONE;
+    }
+    
+    instruction_state_t rst_n(cpu_t* cpu) {
+        switch (cpu->ex_m_cycle) {
+            READ(0, cpu->pc++, &cpu->l_latch, , );
+            READ(1, cpu->pc++, &cpu->h_latch, , );
+
+            // Basically the same as push rr, but with PC
+            IDLE(2, cpu->pins->a |= cpu->sp & 0x7fff, );
+            WRITE(3, --cpu->sp, (cpu->pc >> 8) & 0xff, , );
+            WRITE(4, --cpu->sp, (cpu->pc >> 0) & 0xff, , );
+            LAST(5, cpu->pc = cpu->i_latch & 0x38);
+
+            INVALID_M;
+        }
+
+        return IS_DONE;
+    }
 }
 
 #undef A
@@ -890,5 +1108,14 @@ namespace gb {
 #undef DE
 #undef HL
 #undef NN
+
+#undef READ
+#undef WRITE
+#undef IDLE
+
+#undef ZF
+#undef NF
+#undef HF
+#undef CF
 
 #undef INVALID_M
