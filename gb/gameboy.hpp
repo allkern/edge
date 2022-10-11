@@ -10,15 +10,15 @@
 #include "lr35902/cpu_funcs.hpp"
 
 // Hardware outside LR35902 SoC
-#include "cartridge_slot/slot_struct.hpp"
-#include "cartridge_slot/slot_funcs.hpp"
+#include "slot/slot_struct.hpp"
+#include "slot/slot_funcs.hpp"
 #include "lh5264/lh5264_struct.hpp"
 #include "lh5264/lh5264_funcs.hpp"
 
 namespace gb {
     struct gameboy_t {
         lr35902_t        soc;
-        lh5264_t       wram;
+        lh5264_t         wram;
         cpu_t            cpu;
         cartridge_slot_t slot;
     };
