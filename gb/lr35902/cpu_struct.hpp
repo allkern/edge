@@ -16,6 +16,7 @@ namespace gb {
 
         bool read_ongoing;
         bool write_ongoing;
+        bool idle_cycle;
         bool exec_ongoing;
 
         // Address and data bus latches

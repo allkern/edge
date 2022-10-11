@@ -35,6 +35,26 @@ namespace gb {
         cpu->d_latch = data;
     }
 
+    void cpu_init_idle(cpu_t* cpu) {
+        // Initialize bus to idle state
+        cpu->pins->rd = true;
+        cpu->pins->wr = true;
+        cpu->pins->a = 0x8000;
+        cpu->pins->cs = true;
+        cpu->pins->d = 0x0;
+        cpu->idle_cycle = true;
+    }
+
+    bool cpu_handle_idle(cpu_t* cpu) {
+        if (cpu->ck_half_cycle == 7) {
+            cpu->idle_cycle = false;
+
+            return false;
+        }
+
+        return true;
+    }
+
     bool cpu_handle_write(cpu_t* cpu) {
         bool rom = RANGE(cpu->a_latch, 0x0000, 0x7fff);
         bool ram = RANGE(cpu->a_latch, 0xa000, 0xfdff);

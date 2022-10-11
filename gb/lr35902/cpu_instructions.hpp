@@ -47,6 +47,65 @@ namespace gb {
         L = (hl >> 0) & 0xff;
     }
 
+    inline void set_bc(cpu_t* cpu, uint16_t value) {
+        B = (value >> 8) & 0xff;
+        C = (value >> 0) & 0xff;
+    }
+
+    inline void set_de(cpu_t* cpu, uint16_t value) {
+        D = (value >> 8) & 0xff;
+        E = (value >> 0) & 0xff;
+    }
+
+    inline void set_hl(cpu_t* cpu, uint16_t value) {
+        H = (value >> 8) & 0xff;
+        L = (value >> 0) & 0xff;
+    }
+
+    inline void set_af(cpu_t* cpu, uint16_t value) {
+        A = (value >> 8) & 0xff;
+        F = (value >> 0) & 0xf0;
+    }
+
+    inline void set_sp(cpu_t* cpu, uint16_t value) {
+        cpu->sp = value;
+    }
+
+    inline uint16_t get_hl(cpu_t* cpu) {
+        return HL;
+    }
+
+    inline uint16_t get_bc(cpu_t* cpu) {
+        return BC;
+    }
+
+    inline uint16_t get_de(cpu_t* cpu) {
+        return DE;
+    }
+
+    inline uint16_t get_sp(cpu_t* cpu) {
+        return cpu->sp;
+    }
+
+    inline uint16_t get_af(cpu_t* cpu) {
+        return AF;
+    }
+
+    typedef void (*set16_fn_t)(cpu_t*, uint16_t);
+    typedef uint16_t (*get16_fn_t)(cpu_t*);
+
+    set16_fn_t set16[] = {
+        set_bc, set_de, set_hl, set_sp
+    };
+
+    get16_fn_t get16[] = {
+        get_bc, get_de, get_hl, get_sp
+    };
+    
+    get16_fn_t get16_push[] = {
+        get_bc, get_de, get_hl, get_af
+    };
+
     instruction_state_t nop(cpu_t* cpu) {
         return IS_LAST_CYCLE;
     }
@@ -583,6 +642,51 @@ namespace gb {
         return IS_DONE;
     }
 
+#define WRITE(cycle, addr, data, init, fini) \
+    case cycle: { \
+        if (!cpu->write_ongoing) { \
+            cpu_init_write(cpu, addr, data); \
+            init; \
+        } \
+        if (!cpu_handle_write(cpu)) { \
+            cpu->ex_m_cycle++; \
+            fini;  \
+        } \
+        return IS_EXECUTING; \
+    } break; \
+
+#define READ(cycle, addr, dest, init, fini) \
+    case cycle: { \
+        if (!cpu->read_ongoing) { \
+            cpu_init_read(cpu, addr); \
+            init; \
+        } \
+        if (!cpu_handle_read(cpu, dest)) { \
+            cpu->ex_m_cycle++; \
+            fini;  \
+        } \
+        return IS_EXECUTING; \
+    } break; \
+
+#define IDLE(cycle, init, fini) \
+    case cycle: { \
+        if (!cpu->idle_cycle) { \
+            cpu_init_idle(cpu); \
+            init; \
+        } \
+        if (!cpu_handle_idle(cpu)) { \
+            cpu->ex_m_cycle++; \
+            fini;  \
+        } \
+        return IS_EXECUTING; \
+    } break; \
+
+#define LAST(cycle, exec) \
+    case cycle: { \
+        exec; \
+        return IS_LAST_CYCLE; \
+    } break;
+
     instruction_state_t ld_hli_a(cpu_t* cpu) {
         switch (cpu->ex_m_cycle) {
             case 0: {
@@ -602,6 +706,169 @@ namespace gb {
             case 1: {
                 return IS_LAST_CYCLE;
             } break;
+
+            INVALID_M;
+        }
+
+        return IS_DONE;
+    }
+
+    instruction_state_t ld_rr_nn(cpu_t* cpu) {
+        switch (cpu->ex_m_cycle) {
+            READ(0, cpu->pc++, &cpu->l_latch, , );
+            READ(1, cpu->pc++, &cpu->h_latch, , );
+
+            case 2: {
+                set16[(cpu->i_latch >> 4) & 0x3](cpu, NN);
+
+                return IS_LAST_CYCLE;
+            } break;
+
+            INVALID_M;
+        }
+
+        return IS_DONE;
+    }
+    
+    instruction_state_t ld_nn_sp(cpu_t* cpu) {
+        switch (cpu->ex_m_cycle) {
+            READ(0, cpu->pc++, &cpu->l_latch, , );
+            READ(1, cpu->pc++, &cpu->h_latch, , );
+            WRITE(2, NN, cpu->sp & 0xff, , );
+            WRITE(3, NN + 1, (cpu->sp >> 8) & 0xff, , );
+            LAST(4, );
+
+            INVALID_M;
+        }
+
+        return IS_DONE;
+    }
+
+    instruction_state_t ld_sp_hl(cpu_t* cpu) {
+        switch (cpu->ex_m_cycle) {
+            IDLE(0, , set_sp(cpu, HL));
+            LAST(1, );
+
+            INVALID_M;
+        }
+
+        return IS_DONE;
+    }
+
+    instruction_state_t push_bc(cpu_t* cpu) {
+        switch (cpu->ex_m_cycle) {
+            // push rr's first cycle is bus idle
+            // but SP is latched onto the address bus
+            IDLE(0, cpu->pins->a |= cpu->sp & 0x7fff, );
+            WRITE(1, --cpu->sp, B, , );
+            WRITE(2, --cpu->sp, C, , );
+            LAST(3, );
+
+            INVALID_M;
+        }
+
+        return IS_DONE;
+    }
+
+    instruction_state_t push_de(cpu_t* cpu) {
+        switch (cpu->ex_m_cycle) {
+            // push rr's first cycle is bus idle
+            // but SP is latched onto the address bus
+            IDLE(0, cpu->pins->a |= cpu->sp & 0x7fff, );
+            WRITE(1, --cpu->sp, D, , );
+            WRITE(2, --cpu->sp, E, , );
+            LAST(3, );
+
+            INVALID_M;
+        }
+
+        return IS_DONE;
+    }
+
+    instruction_state_t push_hl(cpu_t* cpu) {
+        switch (cpu->ex_m_cycle) {
+            // push rr's first cycle is bus idle
+            // but SP is latched onto the address bus
+            IDLE(0, cpu->pins->a |= cpu->sp & 0x7fff, );
+            WRITE(1, --cpu->sp, H, , );
+            WRITE(2, --cpu->sp, L, , );
+            LAST(3, );
+
+            INVALID_M;
+        }
+
+        return IS_DONE;
+    }
+
+    instruction_state_t push_af(cpu_t* cpu) {
+        switch (cpu->ex_m_cycle) {
+            // push rr's first cycle is bus idle
+            // but SP is latched onto the address bus
+            IDLE(0, cpu->pins->a |= cpu->sp & 0x7fff, );
+            WRITE(1, --cpu->sp, A, , );
+            WRITE(2, --cpu->sp, F, , );
+            LAST(3, );
+
+            INVALID_M;
+        }
+
+        return IS_DONE;
+    }
+
+    instruction_state_t pop_bc(cpu_t* cpu) {
+        switch (cpu->ex_m_cycle) {
+            READ(0, cpu->sp++, &cpu->l_latch, , );
+            READ(1, cpu->sp++, &cpu->h_latch, , );
+            LAST(2, set_bc(cpu, NN));
+
+            INVALID_M;
+        }
+
+        return IS_DONE;
+    }
+
+    instruction_state_t pop_de(cpu_t* cpu) {
+        switch (cpu->ex_m_cycle) {
+            READ(0, cpu->sp++, &cpu->l_latch, , );
+            READ(1, cpu->sp++, &cpu->h_latch, , );
+            LAST(2, set_de(cpu, NN));
+
+            INVALID_M;
+        }
+
+        return IS_DONE;
+    }
+
+    instruction_state_t pop_hl(cpu_t* cpu) {
+        switch (cpu->ex_m_cycle) {
+            READ(0, cpu->sp++, &cpu->l_latch, , );
+            READ(1, cpu->sp++, &cpu->h_latch, , );
+            LAST(2, set_hl(cpu, NN));
+
+            INVALID_M;
+        }
+
+        return IS_DONE;
+    }
+
+    instruction_state_t pop_af(cpu_t* cpu) {
+        switch (cpu->ex_m_cycle) {
+            READ(0, cpu->sp++, &cpu->l_latch, , );
+            READ(1, cpu->sp++, &cpu->h_latch, , );
+            LAST(2, set_af(cpu, NN));
+
+            INVALID_M;
+        }
+
+        return IS_DONE;
+    }
+
+    instruction_state_t jp_nn(cpu_t* cpu) {
+        switch (cpu->ex_m_cycle) {
+            READ(0, cpu->pc++, &cpu->l_latch, , );
+            READ(1, cpu->pc++, &cpu->h_latch, , );
+            IDLE(2, , );
+            LAST(3, cpu->pc = NN);
 
             INVALID_M;
         }
