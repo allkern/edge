@@ -16,17 +16,23 @@ namespace gb {
     void cpu_init(cpu_t* cpu, lr35902_t* lr35902) {
         std::memset(cpu, 0, sizeof(cpu_t));
 
-        cpu->pins = &lr35902->pins;
-
         // Initialize bus to idle state
-        cpu->pins->rd = true;
-        cpu->pins->wr = true;
-        cpu->pins->a = 0x8000;
-        cpu->pins->cs = true;
+        cpu->bus.rd = true;
+        cpu->bus.wr = true;
+        cpu->bus.a = 0x8000;
+        cpu->bus.cs = true;
 
         cpu->main_bus_set = &lr35902->main_bus_set;
         cpu->vram_bus_set = &lr35902->vram_bus_set;
         cpu->state = ST_FETCH;
+    }
+
+    bool cpu_bus_is_read(cpu_t* cpu) {
+        return (!cpu->bus.rd) && cpu->bus.wr;
+    }
+
+    bool cpu_bus_is_write(cpu_t* cpu) {
+        return (!cpu->bus.wr) && cpu->bus.rd;
     }
 
     void cpu_update_clocks(cpu_t* cpu) {
@@ -37,7 +43,7 @@ namespace gb {
             cpu->total_t_cycles++;
         }
 
-        cpu->pins->phi = !((cpu->ck_half_cycle >> 2) & 1);
+        // cpu->bus.phi = !((cpu->ck_half_cycle >> 2) & 1);
     }
 
     void cpu_clock(cpu_t* cpu) {

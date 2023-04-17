@@ -9,7 +9,7 @@
 
 namespace gb {
     void lh5264_init(lh5264_t* lh5264, lr35902_t* lr35902) {
-        lh5264->pins = &lr35902->pins;
+        lh5264->pins = lr35902->ext_bus;
 
         // Allocate 8KB
         lh5264->memory = new uint8_t[0x2000];

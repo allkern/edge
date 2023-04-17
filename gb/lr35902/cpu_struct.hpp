@@ -3,14 +3,17 @@
 #include "../macros.hpp"
 #include "../structs.hpp"
 
+#include "bus_struct.hpp"
 #include "lr35902_struct.hpp"
 #include "cpu_defines.hpp"
+
 
 #include <cstdint>
 
 namespace gb {
     struct cpu_t {
-        lr35902_t::pins_t* pins;
+        bus_t bus;
+
         bool* main_bus_set;
         bool* vram_bus_set;
 
@@ -19,6 +22,7 @@ namespace gb {
         bool idle_cycle;
         bool exec_ongoing;
         bool ime;
+        bool cb;
 
         // Address and data bus latches
         uint16_t a_latch;
@@ -28,6 +32,7 @@ namespace gb {
         uint8_t r[8];
         uint16_t pc;
         uint16_t sp;
+        int32_t alu_r_latch; 
 
         // Latches for encoded operands
         uint8_t x_latch, y_latch;

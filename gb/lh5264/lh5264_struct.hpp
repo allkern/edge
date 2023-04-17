@@ -13,7 +13,7 @@ namespace gb {
     // https://pdf1.alldatasheet.com/datasheet-pdf/view/42972/SHARP/LH5164A.html
 
     struct lh5264_t {
-        lr35902_t::pins_t* pins;
+        bus_t* pins;
 
         bool prev_we;
         bool prev_oe;

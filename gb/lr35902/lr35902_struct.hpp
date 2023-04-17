@@ -6,7 +6,17 @@
 #include "../structs.hpp"
 #include "../macros.hpp"
 
+#include "bus_struct.hpp"
+
 namespace gb {
+    bus_t lr35902_idle_ext_bus = {
+        /* a  */ 0x8000,
+        /* d  */ 0xff,
+        /* wr */ true,
+        /* rd */ true,
+        /* cs */ true
+    };
+
     // The LR35902 SoC on the Game Boy contains the CPU (Sharp SM83-like core)
     // the PSG or APU, the Video Generator or PPU, the Serial Controller or SC
     // The CPU drives the A, D, WR, RD and CS lines
@@ -20,17 +30,14 @@ namespace gb {
         bool main_bus_set;
         bool vram_bus_set;
 
+        bus_t* ext_bus = &lr35902_idle_ext_bus;
+
         struct pins_t {
-            uint16_t a;     // Main bus Address     A0-A15
-            uint8_t d;      // Main bus Data        D0-D7
-            bool wr;        // Main bus Write       ~WR
-            bool rd;        // Main bus Read        ~RD
-            bool cs;        // Main bus Chip Select ~CS
             uint16_t ma;    // VRAM bus Address     MA0-MA12
             uint8_t md;     // VRAM bus Data        MD0-MD7
-            bool mwr;       // VRAM bus Write       ~MWR
-            bool mrd;       // VRAM bus Read        ~MRD
-            bool mcs;       // VRAM bus Chip Select ~MCS
+            bool mwr;       // VRAM bus Write       /MWR
+            bool mrd;       // VRAM bus Read        /MRD
+            bool mcs;       // VRAM bus Chip Select /MCS
             bool ck[2];     // Clock                CK1-CK2
             bool phi;       // Divided clock        PHI
             uint8_t p1;     // Joypad pins          P10-P15
@@ -39,7 +46,7 @@ namespace gb {
             bool sck;       // Serial clock         SCK
             bool sin;       // Serial in (RX)       SIN
             bool sout;      // Serial out (TX)      SOUT
-            float res;      // Power?               ~RES
+            float res;      // Power?               /RES
             bool ld[2];     // LCD Data             LD0-LD1
             bool cpg;       // LCD Control          CPG
             bool cp;        // LCD Clock            CP
@@ -53,5 +60,6 @@ namespace gb {
         ppu_t* ppu;
         apu_t* apu;
         sc_t* sc;
+        bootrom_t* boot;
     };
 }

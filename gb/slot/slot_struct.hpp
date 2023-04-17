@@ -7,6 +7,6 @@
 
 namespace gb {
     struct cartridge_slot_t {
-        lr35902_t::pins_t* pins;
+        bus_t* pins; // External bus
     };
 }

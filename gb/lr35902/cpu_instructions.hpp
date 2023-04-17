@@ -20,11 +20,15 @@
 #define F cpu->r[6]
 #define H cpu->r[4]
 #define L cpu->r[5]
+#define X cpu->r[cpu->x_latch]
+#define Y cpu->r[cpu->y_latch]
 #define AF (((uint16_t)A << 8) | F)
 #define BC (((uint16_t)B << 8) | C)
 #define DE (((uint16_t)D << 8) | E)
 #define HL (((uint16_t)H << 8) | L)
 #define NN (((uint16_t)cpu->h_latch << 8) | cpu->l_latch)
+#define SET_FLAGS(f) { F |= f; }
+#define CLEAR_FLAGS(f) { F &= ~f; }
 
 #define ZF 0b10000000
 #define NF 0b01000000
@@ -35,6 +39,53 @@
     default: { \
         _log(error, "Invalid M cycle %u while executing %s", cpu->ex_m_cycle, __FUNCTION__); \
         std::exit(1); \
+    } break;
+
+#define WRITE(cycle, addr, data, init, fini) \
+    case cycle: { \
+        if (!cpu->write_ongoing) { \
+            cpu_init_write(cpu, addr, data); \
+            init; \
+        } \
+        if (!cpu_handle_write(cpu)) { \
+            cpu->ex_m_cycle++; \
+            fini;  \
+        } \
+        return IS_EXECUTING; \
+    } break; \
+
+#define READ(cycle, addr, dest, init, fini) \
+    case cycle: { \
+        if (!cpu->read_ongoing) { \
+            cpu_init_read(cpu, addr); \
+            init; \
+        } \
+        if (!cpu_handle_read(cpu, dest)) { \
+            cpu->ex_m_cycle++; \
+            fini;  \
+        } \
+        return IS_EXECUTING; \
+    } break; \
+
+#define IDLE(cycle, init, fini) \
+    case cycle: { \
+        if (!cpu->idle_cycle) { \
+            cpu_init_idle(cpu); \
+            init; \
+        } \
+        if (!cpu_handle_idle(cpu)) { \
+            cpu->ex_m_cycle++; \
+            fini;  \
+        } \
+        return IS_EXECUTING; \
+    } break; \
+
+#define LAST(cycle, exec) \
+    case cycle: { \
+        if (!cpu->read_ongoing) { \
+            exec; \
+        } \
+        return IS_LAST_CYCLE; \
     } break;
 
 namespace gb {
@@ -131,32 +182,15 @@ namespace gb {
         cpu->x_latch = (cpu->i_latch >> 3) & 0x7;
         cpu->y_latch = (cpu->i_latch >> 0) & 0x7;
 
-        cpu->r[cpu->x_latch] = cpu->r[cpu->y_latch];
+        X = Y;
 
         return IS_LAST_CYCLE;
     }
 
     instruction_state_t ld_r_n(cpu_t* cpu) {
         switch (cpu->ex_m_cycle) {
-            case 0: {
-                if (!cpu->read_ongoing) {
-                    cpu_init_read(cpu, cpu->pc++);
-                }
-
-                if (!cpu_handle_read(cpu, &cpu->l_latch)) {
-                    cpu->ex_m_cycle++;
-                }
-
-                return IS_EXECUTING;
-            } break;
-
-            case 1: {
-                cpu->x_latch = (cpu->i_latch >> 3) & 0x7;
-
-                cpu->r[cpu->x_latch] = cpu->l_latch;
-
-                return IS_LAST_CYCLE;
-            } break;
+            READ(0, cpu->pc++, &cpu->l_latch, , );
+            LAST(1, cpu->x_latch = (cpu->i_latch >> 3) & 0x7; X = cpu->l_latch;);
 
             INVALID_M;
         }
@@ -166,25 +200,8 @@ namespace gb {
 
     instruction_state_t ld_r_hl(cpu_t* cpu) {
         switch (cpu->ex_m_cycle) {
-            case 0: {
-                if (!cpu->read_ongoing) {
-                    cpu_init_read(cpu, HL);
-                }
-
-                if (!cpu_handle_read(cpu, &cpu->l_latch)) {
-                    cpu->ex_m_cycle++;
-                }
-
-                return IS_EXECUTING;
-            } break;
-
-            case 1: {
-                cpu->x_latch = (cpu->i_latch >> 3) & 0x7;
-
-                cpu->r[cpu->x_latch] = cpu->l_latch;
-
-                return IS_LAST_CYCLE;
-            } break;
+            READ(0, HL, &cpu->l_latch, , );
+            LAST(1, cpu->x_latch = (cpu->i_latch >> 3) & 0x7; X = cpu->l_latch;);
 
             INVALID_M;
         }
@@ -193,24 +210,11 @@ namespace gb {
     }
 
     instruction_state_t ld_hl_r(cpu_t* cpu) {
+        cpu->x_latch = (cpu->i_latch >> 3) & 0x7;
+
         switch (cpu->ex_m_cycle) {
-            case 0: {
-                if (!cpu->write_ongoing) {
-                    cpu->x_latch = (cpu->i_latch >> 3) & 0x7;
-
-                    cpu_init_write(cpu, HL, cpu->r[cpu->x_latch]);
-                }
-
-                if (!cpu_handle_write(cpu)) {
-                    cpu->ex_m_cycle++;
-                }
-
-                return IS_EXECUTING;
-            } break;
-
-            case 1: {
-                return IS_LAST_CYCLE;
-            } break;
+            WRITE(0, HL, X, , );
+            LAST(1, );
 
             INVALID_M;
         }
@@ -220,33 +224,9 @@ namespace gb {
 
     instruction_state_t ld_hl_n(cpu_t* cpu) {
         switch (cpu->ex_m_cycle) {
-            case 0: {
-                if (!cpu->read_ongoing) {
-                    cpu_init_read(cpu, cpu->pc++);
-                }
-
-                if (!cpu_handle_read(cpu, &cpu->l_latch)) {
-                    cpu->ex_m_cycle++;
-                }
-
-                return IS_EXECUTING;
-            } break;
-
-            case 1: {
-                if (!cpu->write_ongoing) {
-                    cpu_init_write(cpu, HL, cpu->l_latch);
-                }
-
-                if (!cpu_handle_write(cpu)) {
-                    cpu->ex_m_cycle++;
-                }
-
-                return IS_EXECUTING;
-            } break;
-
-            case 2: {
-                return IS_LAST_CYCLE;
-            } break;
+            READ(0, cpu->pc++, &cpu->l_latch, , );
+            WRITE(1, HL, cpu->l_latch, , );
+            LAST(2, );
 
             INVALID_M;
         }
@@ -256,23 +236,8 @@ namespace gb {
 
     instruction_state_t ld_a_bc(cpu_t* cpu) {
         switch (cpu->ex_m_cycle) {
-            case 0: {
-                if (!cpu->read_ongoing) {
-                    cpu_init_read(cpu, BC);
-                }
-
-                if (!cpu_handle_read(cpu, &cpu->l_latch)) {
-                    cpu->ex_m_cycle++;
-                }
-
-                return IS_EXECUTING;
-            } break;
-
-            case 1: {
-                A = cpu->l_latch;
-
-                return IS_LAST_CYCLE;
-            } break;
+            READ(0, BC, &cpu->l_latch, , );
+            LAST(1, A = cpu->l_latch);
 
             INVALID_M;
         }
@@ -282,23 +247,8 @@ namespace gb {
 
     instruction_state_t ld_a_de(cpu_t* cpu) {
         switch (cpu->ex_m_cycle) {
-            case 0: {
-                if (!cpu->read_ongoing) {
-                    cpu_init_read(cpu, DE);
-                }
-
-                if (!cpu_handle_read(cpu, &cpu->l_latch)) {
-                    cpu->ex_m_cycle++;
-                }
-
-                return IS_EXECUTING;
-            } break;
-
-            case 1: {
-                A = cpu->l_latch;
-
-                return IS_LAST_CYCLE;
-            } break;
+            READ(0, DE, &cpu->l_latch, , );
+            LAST(1, A = cpu->l_latch);
 
             INVALID_M;
         }
@@ -308,21 +258,8 @@ namespace gb {
 
     instruction_state_t ld_bc_a(cpu_t* cpu) {
         switch (cpu->ex_m_cycle) {
-            case 0: {
-                if (!cpu->write_ongoing) {
-                    cpu_init_write(cpu, BC, A);
-                }
-
-                if (!cpu_handle_write(cpu)) {
-                    cpu->ex_m_cycle++;
-                }
-
-                return IS_EXECUTING;
-            } break;
-
-            case 1: {
-                return IS_LAST_CYCLE;
-            } break;
+            WRITE(0, BC, A, , );
+            LAST(1, );
 
             INVALID_M;
         }
@@ -332,21 +269,8 @@ namespace gb {
 
     instruction_state_t ld_de_a(cpu_t* cpu) {
         switch (cpu->ex_m_cycle) {
-            case 0: {
-                if (!cpu->write_ongoing) {
-                    cpu_init_write(cpu, DE, A);
-                }
-
-                if (!cpu_handle_write(cpu)) {
-                    cpu->ex_m_cycle++;
-                }
-
-                return IS_EXECUTING;
-            } break;
-
-            case 1: {
-                return IS_LAST_CYCLE;
-            } break;
+            WRITE(0, DE, A, , );
+            LAST(1, );
 
             INVALID_M;
         }
@@ -356,47 +280,10 @@ namespace gb {
 
     instruction_state_t ld_a_nn(cpu_t* cpu) {
         switch (cpu->ex_m_cycle) {
-            case 0: {
-                if (!cpu->read_ongoing) {
-                    cpu_init_read(cpu, cpu->pc++);
-                }
-
-                if (!cpu_handle_read(cpu, &cpu->l_latch)) {
-                    cpu->ex_m_cycle++;
-                }
-
-                return IS_EXECUTING;
-            } break;
-
-            case 1: {
-                if (!cpu->read_ongoing) {
-                    cpu_init_read(cpu, cpu->pc++);
-                }
-
-                if (!cpu_handle_read(cpu, &cpu->h_latch)) {
-                    cpu->ex_m_cycle++;
-                }
-
-                return IS_EXECUTING;
-            } break;
-
-            case 2: {
-                if (!cpu->read_ongoing) {
-                    cpu_init_read(cpu, NN);
-                }
-
-                if (!cpu_handle_read(cpu, &cpu->l_latch)) {
-                    cpu->ex_m_cycle++;
-                }
-
-                return IS_EXECUTING;
-            } break;
-
-            case 3: {
-                A = cpu->l_latch;
-
-                return IS_LAST_CYCLE;
-            } break;
+            READ(0, cpu->pc++, &cpu->l_latch, , );
+            READ(1, cpu->pc++, &cpu->h_latch, , );
+            READ(2, NN, &cpu->l_latch, , );
+            LAST(3, A = cpu->l_latch);
 
             INVALID_M;
         }
@@ -406,45 +293,10 @@ namespace gb {
 
     instruction_state_t ld_nn_a(cpu_t* cpu) {
         switch (cpu->ex_m_cycle) {
-            case 0: {
-                if (!cpu->read_ongoing) {
-                    cpu_init_read(cpu, cpu->pc++);
-                }
-
-                if (!cpu_handle_read(cpu, &cpu->l_latch)) {
-                    cpu->ex_m_cycle++;
-                }
-
-                return IS_EXECUTING;
-            } break;
-
-            case 1: {
-                if (!cpu->read_ongoing) {
-                    cpu_init_read(cpu, cpu->pc++);
-                }
-
-                if (!cpu_handle_read(cpu, &cpu->h_latch)) {
-                    cpu->ex_m_cycle++;
-                }
-
-                return IS_EXECUTING;
-            } break;
-
-            case 2: {
-                if (!cpu->write_ongoing) {
-                    cpu_init_write(cpu, NN, A);
-                }
-
-                if (!cpu_handle_write(cpu)) {
-                    cpu->ex_m_cycle++;
-                }
-
-                return IS_EXECUTING;
-            } break;
-
-            case 3: {
-                return IS_LAST_CYCLE;
-            } break;
+            READ(0, cpu->pc++, &cpu->l_latch, , );
+            READ(1, cpu->pc++, &cpu->h_latch, , );
+            WRITE(2, NN, A, , );
+            LAST(3, );
 
             INVALID_M;
         }
@@ -454,23 +306,8 @@ namespace gb {
 
     instruction_state_t ldh_a_c(cpu_t* cpu) {
         switch (cpu->ex_m_cycle) {
-            case 0: {
-                if (!cpu->read_ongoing) {
-                    cpu_init_read(cpu, 0xff00 | C);
-                }
-
-                if (!cpu_handle_read(cpu, &cpu->l_latch)) {
-                    cpu->ex_m_cycle++;
-                }
-
-                return IS_EXECUTING;
-            } break;
-
-            case 1: {
-                A = cpu->l_latch;
-
-                return IS_LAST_CYCLE;
-            } break;
+            READ(0, 0xff00 | C, &cpu->l_latch, , );
+            LAST(1, A = cpu->l_latch);
 
             INVALID_M;
         }
@@ -480,21 +317,8 @@ namespace gb {
 
     instruction_state_t ldh_c_a(cpu_t* cpu) {
         switch (cpu->ex_m_cycle) {
-            case 0: {
-                if (!cpu->write_ongoing) {
-                    cpu_init_write(cpu, 0xff00 | C, A);
-                }
-
-                if (!cpu_handle_write(cpu)) {
-                    cpu->ex_m_cycle++;
-                }
-
-                return IS_EXECUTING;
-            } break;
-
-            case 1: {
-                return IS_LAST_CYCLE;
-            } break;
+            WRITE(0, 0xff00 | C, A, , );
+            LAST(1, );
 
             INVALID_M;
         }
@@ -504,35 +328,9 @@ namespace gb {
 
     instruction_state_t ldh_a_n(cpu_t* cpu) {
         switch (cpu->ex_m_cycle) {
-            case 0: {
-                if (!cpu->read_ongoing) {
-                    cpu_init_read(cpu, cpu->pc++);
-                }
-
-                if (!cpu_handle_read(cpu, &cpu->l_latch)) {
-                    cpu->ex_m_cycle++;
-                }
-
-                return IS_EXECUTING;
-            } break;
-
-            case 1: {
-                if (!cpu->read_ongoing) {
-                    cpu_init_read(cpu, 0xff00 | cpu->l_latch);
-                }
-
-                if (!cpu_handle_read(cpu, &cpu->l_latch)) {
-                    cpu->ex_m_cycle++;
-                }
-
-                return IS_EXECUTING;
-            } break;
-
-            case 2: {
-                A = cpu->l_latch;
-
-                return IS_LAST_CYCLE;
-            } break;
+            READ(0, cpu->pc++, &cpu->l_latch, , );
+            READ(1, 0xff00 | cpu->l_latch, &cpu->l_latch, , );
+            LAST(2, A = cpu->l_latch);
 
             INVALID_M;
         }
@@ -542,33 +340,9 @@ namespace gb {
 
     instruction_state_t ldh_n_a(cpu_t* cpu) {
         switch (cpu->ex_m_cycle) {
-            case 0: {
-                if (!cpu->read_ongoing) {
-                    cpu_init_read(cpu, cpu->pc++);
-                }
-
-                if (!cpu_handle_read(cpu, &cpu->l_latch)) {
-                    cpu->ex_m_cycle++;
-                }
-
-                return IS_EXECUTING;
-            } break;
-
-            case 1: {
-                if (!cpu->write_ongoing) {
-                    cpu_init_write(cpu, 0xff00 | cpu->l_latch, A);
-                }
-
-                if (!cpu_handle_write(cpu)) {
-                    cpu->ex_m_cycle++;
-                }
-
-                return IS_EXECUTING;
-            } break;
-
-            case 2: {
-                return IS_LAST_CYCLE;
-            } break;
+            READ(0, cpu->pc++, &cpu->l_latch, , );
+            WRITE(1, 0xff00 | cpu->l_latch, A, , );
+            LAST(2, );
 
             INVALID_M;
         }
@@ -578,25 +352,8 @@ namespace gb {
 
     instruction_state_t ld_a_hld(cpu_t* cpu) {
         switch (cpu->ex_m_cycle) {
-            case 0: {
-                if (!cpu->read_ongoing) {
-                    cpu_init_read(cpu, HL);
-
-                    dec_hl(cpu);
-                }
-
-                if (!cpu_handle_read(cpu, &cpu->l_latch)) {
-                    cpu->ex_m_cycle++;
-                }
-
-                return IS_EXECUTING;
-            } break;
-
-            case 1: {
-                A = cpu->l_latch;
-
-                return IS_LAST_CYCLE;
-            } break;
+            READ(0, HL, &cpu->l_latch, dec_hl(cpu), );
+            LAST(1, A = cpu->l_latch);
 
             INVALID_M;
         }
@@ -606,23 +363,8 @@ namespace gb {
 
     instruction_state_t ld_hld_a(cpu_t* cpu) {
         switch (cpu->ex_m_cycle) {
-            case 0: {
-                if (!cpu->write_ongoing) {
-                    cpu_init_write(cpu, HL, A);
-
-                    dec_hl(cpu);
-                }
-
-                if (!cpu_handle_write(cpu)) {
-                    cpu->ex_m_cycle++;
-                }
-
-                return IS_EXECUTING;
-            } break;
-
-            case 1: {
-                return IS_LAST_CYCLE;
-            } break;
+            WRITE(0, HL, A, dec_hl(cpu), );
+            LAST(1, );
 
             INVALID_M;
         }
@@ -632,25 +374,8 @@ namespace gb {
 
     instruction_state_t ld_a_hli(cpu_t* cpu) {
         switch (cpu->ex_m_cycle) {
-            case 0: {
-                if (!cpu->read_ongoing) {
-                    cpu_init_read(cpu, HL);
-
-                    inc_hl(cpu);
-                }
-
-                if (!cpu_handle_read(cpu, &cpu->l_latch)) {
-                    cpu->ex_m_cycle++;
-                }
-
-                return IS_EXECUTING;
-            } break;
-
-            case 1: {
-                A = cpu->l_latch;
-
-                return IS_LAST_CYCLE;
-            } break;
+            READ(0, HL, &cpu->l_latch, inc_hl(cpu), );
+            LAST(1, A = cpu->l_latch);
 
             INVALID_M;
         }
@@ -658,70 +383,10 @@ namespace gb {
         return IS_DONE;
     }
 
-#define WRITE(cycle, addr, data, init, fini) \
-    case cycle: { \
-        if (!cpu->write_ongoing) { \
-            cpu_init_write(cpu, addr, data); \
-            init; \
-        } \
-        if (!cpu_handle_write(cpu)) { \
-            cpu->ex_m_cycle++; \
-            fini;  \
-        } \
-        return IS_EXECUTING; \
-    } break; \
-
-#define READ(cycle, addr, dest, init, fini) \
-    case cycle: { \
-        if (!cpu->read_ongoing) { \
-            cpu_init_read(cpu, addr); \
-            init; \
-        } \
-        if (!cpu_handle_read(cpu, dest)) { \
-            cpu->ex_m_cycle++; \
-            fini;  \
-        } \
-        return IS_EXECUTING; \
-    } break; \
-
-#define IDLE(cycle, init, fini) \
-    case cycle: { \
-        if (!cpu->idle_cycle) { \
-            cpu_init_idle(cpu); \
-            init; \
-        } \
-        if (!cpu_handle_idle(cpu)) { \
-            cpu->ex_m_cycle++; \
-            fini;  \
-        } \
-        return IS_EXECUTING; \
-    } break; \
-
-#define LAST(cycle, exec) \
-    case cycle: { \
-        exec; \
-        return IS_LAST_CYCLE; \
-    } break;
-
     instruction_state_t ld_hli_a(cpu_t* cpu) {
         switch (cpu->ex_m_cycle) {
-            case 0: {
-                if (!cpu->write_ongoing) {
-                    cpu_init_write(cpu, HL, A);
-
-                    inc_hl(cpu);
-                }
-
-                if (!cpu_handle_write(cpu)) {
-                    cpu->ex_m_cycle++;
-                }
-
-                return IS_EXECUTING;
-            } break;
-
-            case 1: {
-                return IS_LAST_CYCLE;
-            } break;
+            WRITE(0, HL, A, inc_hl(cpu), );
+            LAST(1, );
 
             INVALID_M;
         }
@@ -745,7 +410,7 @@ namespace gb {
 
         return IS_DONE;
     }
-    
+
     instruction_state_t ld_nn_sp(cpu_t* cpu) {
         switch (cpu->ex_m_cycle) {
             READ(0, cpu->pc++, &cpu->l_latch, , );
@@ -775,7 +440,7 @@ namespace gb {
         switch (cpu->ex_m_cycle) {
             // push rr's first cycle is bus idle
             // but SP is latched onto the address bus
-            IDLE(0, cpu->pins->a |= cpu->sp & 0x7fff, );
+            IDLE(0, cpu->bus.a |= cpu->sp & 0x7fff, );
             WRITE(1, --cpu->sp, B, , );
             WRITE(2, --cpu->sp, C, , );
             LAST(3, );
@@ -790,7 +455,7 @@ namespace gb {
         switch (cpu->ex_m_cycle) {
             // push rr's first cycle is bus idle
             // but SP is latched onto the address bus
-            IDLE(0, cpu->pins->a |= cpu->sp & 0x7fff, );
+            IDLE(0, cpu->bus.a |= cpu->sp & 0x7fff, );
             WRITE(1, --cpu->sp, D, , );
             WRITE(2, --cpu->sp, E, , );
             LAST(3, );
@@ -805,7 +470,7 @@ namespace gb {
         switch (cpu->ex_m_cycle) {
             // push rr's first cycle is bus idle
             // but SP is latched onto the address bus
-            IDLE(0, cpu->pins->a |= cpu->sp & 0x7fff, );
+            IDLE(0, cpu->bus.a |= cpu->sp & 0x7fff, );
             WRITE(1, --cpu->sp, H, , );
             WRITE(2, --cpu->sp, L, , );
             LAST(3, );
@@ -820,7 +485,7 @@ namespace gb {
         switch (cpu->ex_m_cycle) {
             // push rr's first cycle is bus idle
             // but SP is latched onto the address bus
-            IDLE(0, cpu->pins->a |= cpu->sp & 0x7fff, );
+            IDLE(0, cpu->bus.a |= cpu->sp & 0x7fff, );
             WRITE(1, --cpu->sp, A, , );
             WRITE(2, --cpu->sp, F, , );
             LAST(3, );
@@ -977,7 +642,7 @@ namespace gb {
             READ(1, cpu->pc++, &cpu->h_latch, , );
 
             // Basically the same as push rr, but with PC
-            IDLE(2, cpu->pins->a |= cpu->sp & 0x7fff, );
+            IDLE(2, cpu->bus.a |= cpu->sp & 0x7fff, );
             WRITE(3, --cpu->sp, (cpu->pc >> 8) & 0xff, , );
             WRITE(4, --cpu->sp, (cpu->pc >> 0) & 0xff, , );
             LAST(5, cpu->pc = NN);
@@ -999,7 +664,7 @@ namespace gb {
                         cpu_init_idle(cpu);
 
                         // Put SP on the bus while bus-idling
-                        cpu->pins->a |= cpu->sp & 0x7fff;
+                        cpu->bus.a |= cpu->sp & 0x7fff;
                     }
 
                     if (!cpu_handle_idle(cpu)) {
@@ -1046,9 +711,10 @@ namespace gb {
                     }
 
                     if (!cpu_handle_read(cpu, &cpu->l_latch)) {
-                        cpu->ex_m_cycle++; \
+                        cpu->ex_m_cycle++;
                     }
-                    return IS_EXECUTING; \
+
+                    return IS_EXECUTING;
                 } else {
                     return IS_LAST_CYCLE;
                 }
@@ -1079,19 +745,364 @@ namespace gb {
     
     instruction_state_t rst_n(cpu_t* cpu) {
         switch (cpu->ex_m_cycle) {
-            READ(0, cpu->pc++, &cpu->l_latch, , );
-            READ(1, cpu->pc++, &cpu->h_latch, , );
-
             // Basically the same as push rr, but with PC
-            IDLE(2, cpu->pins->a |= cpu->sp & 0x7fff, );
-            WRITE(3, --cpu->sp, (cpu->pc >> 8) & 0xff, , );
-            WRITE(4, --cpu->sp, (cpu->pc >> 0) & 0xff, , );
-            LAST(5, cpu->pc = cpu->i_latch & 0x38);
+            IDLE(0, cpu->bus.a |= cpu->sp & 0x7fff, );
+            WRITE(1, --cpu->sp, (cpu->pc >> 8) & 0xff, , );
+            WRITE(2, --cpu->sp, (cpu->pc >> 0) & 0xff, , );
+            LAST(3, cpu->pc = cpu->i_latch & 0x38);
 
             INVALID_M;
         }
 
         return IS_DONE;
+    }
+
+    // ALU
+
+    void add8(cpu_t* cpu, uint8_t* dest, uint8_t src, bool carry) {
+        cpu->alu_r_latch = *dest;
+        cpu->alu_r_latch += src;
+
+        if (carry && (F & CF)) cpu->alu_r_latch++; 
+
+        CLEAR_FLAGS(NF);
+
+        if (  cpu->alu_r_latch > 0xff ) SET_FLAGS(CF) else CLEAR_FLAGS(CF);
+        if (!(cpu->alu_r_latch & 0xff)) SET_FLAGS(ZF) else CLEAR_FLAGS(ZF);
+        if (((*dest & 0xf) + (src & 0xf)) & 0xf0) SET_FLAGS(HF) else CLEAR_FLAGS(HF);
+
+        *dest = cpu->alu_r_latch & 0xff;
+    }
+
+    void sub8(cpu_t* cpu, uint8_t* dest, uint8_t src, bool carry) {
+        cpu->alu_r_latch = *dest;
+        cpu->alu_r_latch -= src;
+
+        if (carry && (F & CF)) cpu->alu_r_latch--; 
+
+        SET_FLAGS(NF);
+
+        if (  cpu->alu_r_latch > 0xff ) SET_FLAGS(CF) else CLEAR_FLAGS(CF);
+        if (!(cpu->alu_r_latch & 0xff)) SET_FLAGS(ZF) else CLEAR_FLAGS(ZF);
+        //if (((*dest & 0xf) + (src & 0xf)) & 0xf0) SET_FLAGS(HF) else CLEAR_FLAGS(HF);
+
+        *dest = cpu->alu_r_latch & 0xff;
+    }
+    
+    void and8(cpu_t* cpu, uint8_t* dest, uint8_t src) {
+        cpu->alu_r_latch = (*dest) & src;
+
+        SET_FLAGS(HF);
+        CLEAR_FLAGS(NF | CF);
+
+        if (!(cpu->alu_r_latch & 0xff)) SET_FLAGS(ZF) else CLEAR_FLAGS(ZF);
+
+        *dest = cpu->alu_r_latch;
+    }
+    
+    void xor8(cpu_t* cpu, uint8_t* dest, uint8_t src) {
+        cpu->alu_r_latch = (*dest) ^ src;
+
+        CLEAR_FLAGS(NF | CF | HF);
+
+        if (!(cpu->alu_r_latch & 0xff)) SET_FLAGS(ZF) else CLEAR_FLAGS(ZF);
+
+        *dest = cpu->alu_r_latch;
+    }
+    
+    void or8(cpu_t* cpu, uint8_t* dest, uint8_t src) {
+        cpu->alu_r_latch = (*dest) | src;
+
+        CLEAR_FLAGS(NF | CF | HF);
+
+        if (!(cpu->alu_r_latch & 0xff)) SET_FLAGS(ZF) else CLEAR_FLAGS(ZF);
+
+        *dest = cpu->alu_r_latch;
+    }
+
+    void cp8(cpu_t* cpu, uint8_t* dest, uint8_t src) {
+        cpu->alu_r_latch = *dest;
+        cpu->alu_r_latch -= src;
+
+        SET_FLAGS(NF);
+
+        if (  cpu->alu_r_latch > 0xff ) SET_FLAGS(CF) else CLEAR_FLAGS(CF);
+        if (!(cpu->alu_r_latch & 0xff)) SET_FLAGS(ZF) else CLEAR_FLAGS(ZF);
+        //if (((*dest & 0xf) + (src & 0xf)) & 0xf0) SET_FLAGS(HF) else CLEAR_FLAGS(HF);
+
+        // *dest = cpu->alu_r_latch & 0xff;
+    }
+
+    instruction_state_t add_a_r(cpu_t* cpu) {
+        cpu->y_latch = (cpu->i_latch >> 0) & 0x7;
+
+        add8(cpu, &A, Y, cpu->i_latch & 0x8);
+
+        return IS_LAST_CYCLE;
+    }
+
+    instruction_state_t add_a_n(cpu_t* cpu) {
+        switch (cpu->ex_m_cycle) {
+            READ(0, cpu->pc++, &cpu->l_latch, , );
+            LAST(1, add8(cpu, &A, cpu->l_latch, cpu->i_latch & 0x8));
+
+            INVALID_M;
+        }
+
+        return IS_DONE;    
+    }
+    
+    instruction_state_t add_a_hl(cpu_t* cpu) {
+        switch (cpu->ex_m_cycle) {
+            READ(0, HL, &cpu->l_latch, , );
+            LAST(1, add8(cpu, &A, cpu->l_latch, cpu->i_latch & 0x8));
+
+            INVALID_M;
+        }
+
+        return IS_DONE;    
+    }
+
+    instruction_state_t sub_a_r(cpu_t* cpu) {
+        cpu->y_latch = (cpu->i_latch >> 0) & 0x7;
+
+        sub8(cpu, &A, Y, cpu->i_latch & 0x8);
+
+        return IS_LAST_CYCLE;
+    }
+
+    instruction_state_t sub_a_n(cpu_t* cpu) {
+        switch (cpu->ex_m_cycle) {
+            READ(0, cpu->pc++, &cpu->l_latch, , );
+            LAST(1, sub8(cpu, &A, cpu->l_latch, cpu->i_latch & 0x8));
+
+            INVALID_M;
+        }
+
+        return IS_DONE;    
+    }
+    
+    instruction_state_t sub_a_hl(cpu_t* cpu) {
+        switch (cpu->ex_m_cycle) {
+            READ(0, HL, &cpu->l_latch, , );
+            LAST(1, sub8(cpu, &A, cpu->l_latch, cpu->i_latch & 0x8));
+
+            INVALID_M;
+        }
+
+        return IS_DONE;    
+    }
+
+    instruction_state_t and_a_r(cpu_t* cpu) {
+        cpu->y_latch = (cpu->i_latch >> 0) & 0x7;
+
+        and8(cpu, &A, Y);
+
+        return IS_LAST_CYCLE;
+    }
+
+    instruction_state_t and_a_n(cpu_t* cpu) {
+        switch (cpu->ex_m_cycle) {
+            READ(0, cpu->pc++, &cpu->l_latch, , );
+            LAST(1, and8(cpu, &A, cpu->l_latch));
+
+            INVALID_M;
+        }
+
+        return IS_DONE;
+    }
+    
+    instruction_state_t and_a_hl(cpu_t* cpu) {
+        switch (cpu->ex_m_cycle) {
+            READ(0, HL, &cpu->l_latch, , );
+            LAST(1, and8(cpu, &A, cpu->l_latch));
+
+            INVALID_M;
+        }
+
+        return IS_DONE;    
+    }
+
+    instruction_state_t xor_a_r(cpu_t* cpu) {
+        cpu->y_latch = (cpu->i_latch >> 0) & 0x7;
+
+        xor8(cpu, &A, Y);
+
+        return IS_LAST_CYCLE;
+    }
+
+    instruction_state_t xor_a_n(cpu_t* cpu) {
+        switch (cpu->ex_m_cycle) {
+            READ(0, cpu->pc++, &cpu->l_latch, , );
+            LAST(1, xor8(cpu, &A, cpu->l_latch));
+
+            INVALID_M;
+        }
+
+        return IS_DONE;
+    }
+    
+    instruction_state_t xor_a_hl(cpu_t* cpu) {
+        switch (cpu->ex_m_cycle) {
+            READ(0, HL, &cpu->l_latch, , );
+            LAST(1, xor8(cpu, &A, cpu->l_latch));
+
+            INVALID_M;
+        }
+
+        return IS_DONE;    
+    }
+
+    instruction_state_t or_a_r(cpu_t* cpu) {
+        cpu->y_latch = (cpu->i_latch >> 0) & 0x7;
+
+        or8(cpu, &A, Y);
+
+        return IS_LAST_CYCLE;
+    }
+
+    instruction_state_t or_a_n(cpu_t* cpu) {
+        switch (cpu->ex_m_cycle) {
+            READ(0, cpu->pc++, &cpu->l_latch, , );
+            LAST(1, or8(cpu, &A, cpu->l_latch));
+
+            INVALID_M;
+        }
+
+        return IS_DONE;
+    }
+    
+    instruction_state_t or_a_hl(cpu_t* cpu) {
+        switch (cpu->ex_m_cycle) {
+            READ(0, HL, &cpu->l_latch, , );
+            LAST(1, or8(cpu, &A, cpu->l_latch));
+
+            INVALID_M;
+        }
+
+        return IS_DONE;    
+    }
+
+    instruction_state_t cp_a_r(cpu_t* cpu) {
+        cpu->y_latch = (cpu->i_latch >> 0) & 0x7;
+
+        cp8(cpu, &A, Y);
+
+        return IS_LAST_CYCLE;
+    }
+
+    instruction_state_t cp_a_n(cpu_t* cpu) {
+        switch (cpu->ex_m_cycle) {
+            READ(0, cpu->pc++, &cpu->l_latch, , );
+            LAST(1, cp8(cpu, &A, cpu->l_latch));
+
+            INVALID_M;
+        }
+
+        return IS_DONE;
+    }
+    
+    instruction_state_t cp_a_hl(cpu_t* cpu) {
+        switch (cpu->ex_m_cycle) {
+            READ(0, HL, &cpu->l_latch, , );
+            LAST(1, cp8(cpu, &A, cpu->l_latch));
+
+            INVALID_M;
+        }
+
+        return IS_DONE;    
+    }
+
+    instruction_state_t inc_r(cpu_t* cpu) {
+        cpu->x_latch = (cpu->i_latch >> 3) & 0x7;
+
+        cpu->r[cpu->x_latch]++;
+
+        CLEAR_FLAGS(NF);
+
+        if (!cpu->r[cpu->x_latch]) SET_FLAGS(ZF) else CLEAR_FLAGS(ZF);
+        if (((cpu->r[cpu->x_latch] & 0xf) + 1) & 0xf0) SET_FLAGS(HF) else CLEAR_FLAGS(HF);
+
+        return IS_LAST_CYCLE;
+    }
+
+    instruction_state_t inc_dhl(cpu_t* cpu) {
+        switch (cpu->ex_m_cycle) {
+            READ(0, HL, &cpu->l_latch, , );
+            WRITE(1, HL, ++cpu->l_latch, , );
+            LAST(2,
+                CLEAR_FLAGS(NF);
+
+                if (!cpu->r[cpu->x_latch]) SET_FLAGS(ZF) else CLEAR_FLAGS(ZF);
+                if (((cpu->r[cpu->x_latch] & 0xf) + 1) & 0xf0) SET_FLAGS(HF) else CLEAR_FLAGS(HF);
+            );
+
+            INVALID_M;
+        }
+
+        return IS_DONE;
+    }
+
+    instruction_state_t dec_r(cpu_t* cpu) {
+        cpu->x_latch = (cpu->i_latch >> 3) & 0x7;
+
+        cpu->r[cpu->x_latch]--;
+
+        CLEAR_FLAGS(NF);
+
+        if (!cpu->r[cpu->x_latch]) SET_FLAGS(ZF) else CLEAR_FLAGS(ZF);
+        if (((cpu->r[cpu->x_latch] & 0xf) + 1) & 0xf0) SET_FLAGS(HF) else CLEAR_FLAGS(HF);
+
+        return IS_LAST_CYCLE;
+    }
+
+    instruction_state_t dec_dhl(cpu_t* cpu) {
+        switch (cpu->ex_m_cycle) {
+            READ(0, HL, &cpu->l_latch, , );
+            WRITE(1, HL, --cpu->l_latch, , );
+            LAST(2,
+                CLEAR_FLAGS(NF);
+
+                if (!cpu->r[cpu->x_latch]) SET_FLAGS(ZF) else CLEAR_FLAGS(ZF);
+                if (((cpu->r[cpu->x_latch] & 0xf) + 1) & 0xf0) SET_FLAGS(HF) else CLEAR_FLAGS(HF);
+            );
+
+            INVALID_M;
+        }
+
+        return IS_DONE;
+    }
+
+    instruction_state_t cpl_a(cpu_t* cpu) {
+        A ^= 0xff;
+
+        return IS_LAST_CYCLE;
+    }
+
+    instruction_state_t scf(cpu_t* cpu) {
+        SET_FLAGS(CF);
+
+        return IS_LAST_CYCLE;
+    }
+    
+    instruction_state_t ccf(cpu_t* cpu) {
+        CLEAR_FLAGS(CF);
+
+        return IS_LAST_CYCLE;
+    }
+
+    instruction_state_t cb(cpu_t* cpu) {
+        _log(debug, "CB prefix unimplemented!", cpu->i_latch);
+
+        cpu->pc++;
+
+        return IS_LAST_CYCLE;
+    }
+
+    instruction_state_t unk(cpu_t* cpu) {
+        _log(debug, "Unimplemented instruction %02x!", cpu->i_latch);
+
+        return IS_LAST_CYCLE;
     }
 }
 
@@ -1103,6 +1114,8 @@ namespace gb {
 #undef F
 #undef H
 #undef L
+#undef X
+#undef Y
 #undef AF
 #undef BC
 #undef DE

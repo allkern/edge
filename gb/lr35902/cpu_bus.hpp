@@ -37,11 +37,11 @@ namespace gb {
 
     void cpu_init_idle(cpu_t* cpu) {
         // Initialize bus to idle state
-        cpu->pins->rd = true;
-        cpu->pins->wr = true;
-        cpu->pins->a = 0x8000;
-        cpu->pins->cs = true;
-        cpu->pins->d = 0x0;
+        cpu->bus.rd = true;
+        cpu->bus.wr = true;
+        cpu->bus.a = 0x8000;
+        cpu->bus.cs = true;
+        cpu->bus.d = 0x0;
         cpu->idle_cycle = true;
     }
 
@@ -56,54 +56,51 @@ namespace gb {
     }
 
     bool cpu_handle_write(cpu_t* cpu) {
-        bool rom = RANGE(cpu->a_latch, 0x0000, 0x7fff);
-        bool ram = RANGE(cpu->a_latch, 0xa000, 0xfdff);
-
         switch (cpu->ck_half_cycle) {
             case 0: {
-                cpu->pins->wr = true;
-                cpu->pins->rd = false;
+                cpu->bus.wr = true;
+                cpu->bus.rd = false;
 
                 // Pull A15 and CS high
-                cpu->pins->a |= 0x8000;
-                cpu->pins->cs = true;
+                cpu->bus.a |= 0x8000;
+                cpu->bus.cs = true;
 
             } break;
 
             case 1: {
                 if (RANGE(cpu->a_latch, 0x0000, 0x7fff) || RANGE(cpu->a_latch, 0xa000, 0xfdff)) {
-                    cpu->pins->rd = true;
+                    cpu->bus.rd = true;
                 }
 
                 // Keep A15
-                cpu->pins->a &= 0x8000;
+                cpu->bus.a &= 0x8000;
 
                 // Latch address into A lines
-                cpu->pins->a |= cpu->a_latch & 0x7fff;
+                cpu->bus.a |= cpu->a_latch & 0x7fff;
             } break;
 
             case 2: {
                 if (RANGE(cpu->a_latch, 0x0000, 0x7fff)) {
                     // A15 pulled low
-                    cpu->pins->a &= 0x7fff;
+                    cpu->bus.a &= 0x7fff;
                 } else if (RANGE(cpu->a_latch, 0xa000, 0xfdff)) {
-                    cpu->pins->cs = false;
+                    cpu->bus.cs = false;
                 }
             } break;
 
             case 3: {
                 if (RANGE(cpu->a_latch, 0x0000, 0x7fff) || RANGE(cpu->a_latch, 0xa000, 0xfdff)) {
                     // WR goes low
-                    cpu->pins->wr = false;
+                    cpu->bus.wr = false;
 
                     // and data is latched into D lines
-                    cpu->pins->d = cpu->d_latch;
+                    cpu->bus.d = cpu->d_latch;
                 }
             } break;
 
             case 6: {
                 // WR is pulled high
-                cpu->pins->wr = true;
+                cpu->bus.wr = true;
             } break;
 
             case 7: {
@@ -123,33 +120,33 @@ namespace gb {
     bool cpu_handle_read(cpu_t* cpu, uint8_t* dest) {
         switch (cpu->ck_half_cycle) {
             case 0: {
-                cpu->pins->wr = true;
-                cpu->pins->rd = false;
+                cpu->bus.wr = true;
+                cpu->bus.rd = false;
 
                 // Pull A15 and CS high
-                cpu->pins->a |= 0x8000;
-                cpu->pins->cs = true;
+                cpu->bus.a |= 0x8000;
+                cpu->bus.cs = true;
             } break;
 
             case 1: {
                 // Keep A15
-                cpu->pins->a &= 0x8000;
+                cpu->bus.a &= 0x8000;
 
                 // Latch address into A lines
-                cpu->pins->a |= cpu->a_latch & 0x7fff;
+                cpu->bus.a |= cpu->a_latch & 0x7fff;
             } break;
 
             case 2: {
                 if (RANGE(cpu->a_latch, 0x0000, 0x7fff)) {
-                    cpu->pins->a &= 0x7fff;
+                    cpu->bus.a &= 0x7fff;
                 } else if (RANGE(cpu->a_latch, 0xa000, 0xfdff)) {
-                    cpu->pins->cs = false;
+                    cpu->bus.cs = false;
                 }
             } break;
 
             // Latch data pins into destination
             case 6: {
-                *dest = cpu->pins->d;
+                *dest = cpu->bus.d;
             } break;
 
             case 7: {
